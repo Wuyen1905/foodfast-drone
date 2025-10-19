@@ -106,6 +106,11 @@ const Cart: React.FC = () => {
   };
 
   const handleProceedToCheckout = () => {
+    if (items.length === 0) {
+      toast.error('Giỏ hàng trống! Vui lòng thêm sản phẩm trước khi thanh toán.');
+      return;
+    }
+    
     // Redirect unauthenticated users to Customer Info Form
     if (!user) {
       toast.success('📝 Vui lòng điền thông tin khách hàng...');

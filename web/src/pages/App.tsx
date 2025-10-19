@@ -5,6 +5,7 @@ import Menu from './Menu';
 import Details from './Details';
 import Cart from './Cart';
 import Checkout from './Checkout';
+import VNPayReturn from './VNPayReturn';
 import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
 import OrderTracking from './OrderTracking';
@@ -36,6 +37,7 @@ const App: React.FC = () => {
             </ProtectedRoute>
           } />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/vnpay-return" element={<VNPayReturn />} />
           
           {/* Protected routes for all logged in users */}
           <Route path="/orders" element={<OrderTracking />} />

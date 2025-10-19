@@ -1,15 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useOrders } from "../context/OrderContext";
+import { useCart } from "../context/CartContext";
 import { useAuth } from "../AuthContext";
 import { formatVND } from "../utils/currency";
+import { createVNPayPaymentUrl, simulateVNPayPayment } from "../services/vnpay";
 import styled from "styled-components";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { checkoutSchema, CheckoutFormData } from "../schemas/checkoutSchema";
 
 // Styled Components
 const CheckoutContainer = styled.div`
-  max-width: 600px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 24px;
 `;
@@ -30,8 +33,21 @@ const Title = styled.h2`
   font-weight: 700;
 `;
 
+const FormSection = styled.div`
+  margin-bottom: 32px;
+`;
+
+const SectionTitle = styled.h3`
+  margin: 0 0 20px 0;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 8px;
+`;
+
 const FormGroup = styled.div`
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 `;
 
 const Label = styled.label`
@@ -41,10 +57,10 @@ const Label = styled.label`
   color: var(--text);
 `;
 
-const Input = styled.input`
+const Input = styled.input<{ hasError?: boolean }>`
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid var(--border);
+  border: 2px solid ${props => props.hasError ? '#f44336' : 'var(--border)'};
   border-radius: 8px;
   background: var(--card);
   color: var(--text);
@@ -53,48 +69,205 @@ const Input = styled.input`
   
   &:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.1);
+    border-color: ${props => props.hasError ? '#f44336' : 'var(--primary)'};
+    box-shadow: 0 0 0 3px ${props => props.hasError ? 'rgba(244, 67, 54, 0.1)' : 'rgba(255, 102, 0, 0.1)'};
   }
 `;
 
-const SubmitButton = styled(motion.button)`
+const ErrorMessage = styled(motion.div)`
+  color: #f44336;
+  font-size: 12px;
+  margin-top: 4px;
+`;
+
+const PaymentMethodGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+`;
+
+const PaymentMethodCard = styled(motion.div)<{ isSelected?: boolean }>`
+  padding: 16px;
+  border: 2px solid ${props => props.isSelected ? 'var(--primary)' : 'var(--border)'};
+  border-radius: 12px;
+  cursor: pointer;
+  background: ${props => props.isSelected ? 'rgba(255, 102, 0, 0.05)' : 'var(--card)'};
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+  }
+`;
+
+const PaymentMethodIcon = styled.div`
+  font-size: 24px;
+  margin-bottom: 8px;
+`;
+
+const PaymentMethodName = styled.div`
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+`;
+
+const PaymentMethodDesc = styled.div`
+  font-size: 12px;
+  color: var(--secondaryText);
+`;
+
+const OrderSummary = styled.div`
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+`;
+
+const SummaryRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  
+  &:last-child {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 12px;
+    font-weight: 600;
+    font-size: 16px;
+  }
+`;
+
+const SubmitButton = styled(motion.button)<{ disabled?: boolean }>`
   width: 100%;
   padding: 16px;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  background: ${props => props.disabled ? 'var(--border)' : 'linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%)'};
   color: white;
   border: none;
   border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
-  cursor: pointer;
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   transition: all 0.3s ease;
   box-shadow: var(--shadow);
   
-  &:hover {
+  &:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
 `;
 
+const LoadingOverlay = styled(motion.div)`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const LoadingCard = styled(motion.div)`
+  background: var(--card);
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+  max-width: 400px;
+  margin: 20px;
+`;
+
+const LoadingSpinner = styled(motion.div)`
+  width: 50px;
+  height: 50px;
+  border: 4px solid var(--border);
+  border-top: 4px solid var(--primary);
+  border-radius: 50%;
+  margin: 0 auto 20px;
+`;
+
+const VNPayQRCode = styled.div`
+  width: 200px;
+  height: 200px;
+  background: #f5f5f5;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--secondaryText);
+`;
+
 const Checkout: React.FC = () => {
   const { user } = useAuth();
   const { addOrder, getOrdersByPhone } = useOrders();
+  const { items, clear, subtotal } = useCart();
   const navigate = useNavigate();
-  const [form, setForm] = useState({
+  
+  const [form, setForm] = useState<CheckoutFormData>({
     name: user?.name || "",
     phone: user?.phone || "",
-    address: "",
+    email: "",
+    street: "",
+    district: "",
+    city: "",
+    note: "",
+    payment: "cod",
   });
+  
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showVNPayModal, setShowVNPayModal] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => 
-    setForm({ ...form, [e.target.name]: e.target.value });
+  // Calculate totals
+  const delivery = 25000; // 25k VND
+  const tax = subtotal * 0.08;
+  const total = subtotal + tax + delivery;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.phone) return toast.error("Vui lòng nhập số điện thoại!");
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
     
-    // Check order limit (max 2 active orders per phone number)
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const validateForm = async (): Promise<boolean> => {
+    try {
+      await checkoutSchema.validate(form, { abortEarly: false });
+      setErrors({});
+      return true;
+    } catch (err: any) {
+      const validationErrors: Record<string, string> = {};
+      err.inner.forEach((error: any) => {
+        validationErrors[error.path] = error.message;
+      });
+      setErrors(validationErrors);
+      return false;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!await validateForm()) {
+      toast.error("Vui lòng kiểm tra lại thông tin!");
+      return;
+    }
+
+    if (items.length === 0) {
+      toast.error("Giỏ hàng trống!");
+      return;
+    }
+    
+    // Check order limit
     const existingOrders = getOrdersByPhone(form.phone);
     const activeOrders = existingOrders.filter((order: any) => 
       order.status === "Processing" || order.status === "Delivering"
@@ -104,32 +277,74 @@ const Checkout: React.FC = () => {
       toast.error("Bạn đã đặt nhiều hơn số đơn hàng quy định! Chờ một xíu nhé!");
       return;
     }
-    
-    const fakeCart = [
-      { name: "Pizza Sky", qty: 1, price: 8.9 },
-      { name: "Burger Drone", qty: 2, price: 6.5 },
-    ];
-    const total = fakeCart.reduce((t, i) => t + i.qty * i.price, 0);
-    
-    // Show order summary with Vietnamese currency
-    toast(`Tổng tiền: ${formatVND(total)}`, { 
-      icon: "💰",
-      duration: 3000 
-    });
 
-    addOrder({
-      id: Date.now().toString(),
-      name: form.name,
-      phone: form.phone,
-      address: form.address,
-      items: fakeCart,
-      total,
-      status: "Processing",
-      dronePath: ["Nhà hàng", "Kho Drone", "Đang giao", "Hoàn tất"],
-    });
-    
-    toast.success("Bạn đã đặt hàng thành công!");
-    navigate("/orders");
+    setIsSubmitting(true);
+
+    try {
+      if (form.payment === 'vnpay') {
+        // Handle VNPay payment
+        setShowVNPayModal(true);
+        
+        // Simulate VNPay payment
+        const paymentResult = await simulateVNPayPayment();
+        
+        if (paymentResult.success) {
+          // Create order with VNPay payment
+          const orderId = Date.now().toString();
+          addOrder({
+            id: orderId,
+            name: form.name,
+            phone: form.phone,
+            address: `${form.street}, ${form.district}, ${form.city}`,
+            items: items.map(item => ({
+              name: item.name,
+              qty: item.qty,
+              price: item.price
+            })),
+            total,
+            status: "Processing",
+            paymentMethod: 'vnpay',
+            paymentStatus: 'completed',
+            vnpayTransactionId: paymentResult.transactionId,
+            dronePath: ["Nhà hàng", "Kho Drone", "Đang giao", "Hoàn tất"],
+          });
+          
+          clear();
+          toast.success("Thanh toán VNPay thành công!");
+          navigate("/orders");
+        } else {
+          toast.error(paymentResult.message);
+        }
+      } else {
+        // Handle other payment methods (COD, etc.)
+        const orderId = Date.now().toString();
+        addOrder({
+          id: orderId,
+          name: form.name,
+          phone: form.phone,
+          address: `${form.street}, ${form.district}, ${form.city}`,
+          items: items.map(item => ({
+            name: item.name,
+            qty: item.qty,
+            price: item.price
+          })),
+          total,
+          status: "Processing",
+          paymentMethod: form.payment as any,
+          paymentStatus: form.payment === 'cod' ? 'pending' : 'completed',
+          dronePath: ["Nhà hàng", "Kho Drone", "Đang giao", "Hoàn tất"],
+        });
+        
+        clear();
+        toast.success("Bạn đã đặt hàng thành công!");
+        navigate("/orders");
+      }
+    } catch (error) {
+      toast.error("Có lỗi xảy ra khi đặt hàng!");
+    } finally {
+      setIsSubmitting(false);
+      setShowVNPayModal(false);
+    }
   };
 
   return (
@@ -140,50 +355,268 @@ const Checkout: React.FC = () => {
         transition={{ duration: 0.6 }}
       >
         <Title>Thông tin thanh toán</Title>
+        
         <form onSubmit={handleSubmit}>
-          <FormGroup>
-            <Label>Họ tên *</Label>
-            <Input 
-              name="name" 
-              value={form.name} 
-              onChange={handleChange} 
-              required 
-              placeholder="Nhập họ tên của bạn"
-            />
-          </FormGroup>
+          {/* Customer Information */}
+          <FormSection>
+            <SectionTitle>Thông tin khách hàng</SectionTitle>
+            
+            <FormGroup>
+              <Label>Họ tên *</Label>
+              <Input 
+                name="name" 
+                value={form.name} 
+                onChange={handleChange} 
+                placeholder="Nhập họ tên của bạn"
+                hasError={!!errors.name}
+              />
+              <AnimatePresence>
+                {errors.name && (
+                  <ErrorMessage
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    {errors.name}
+                  </ErrorMessage>
+                )}
+              </AnimatePresence>
+            </FormGroup>
 
-          <FormGroup>
-            <Label>Số điện thoại *</Label>
-            <Input 
-              name="phone" 
-              value={form.phone} 
-              onChange={handleChange} 
-              required 
-              placeholder="Nhập số điện thoại"
-              type="tel"
-            />
-          </FormGroup>
+            <FormGroup>
+              <Label>Số điện thoại *</Label>
+              <Input 
+                name="phone" 
+                value={form.phone} 
+                onChange={handleChange} 
+                placeholder="Nhập số điện thoại"
+                type="tel"
+                hasError={!!errors.phone}
+              />
+              <AnimatePresence>
+                {errors.phone && (
+                  <ErrorMessage
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    {errors.phone}
+                  </ErrorMessage>
+                )}
+              </AnimatePresence>
+            </FormGroup>
 
-          <FormGroup>
-            <Label>Địa chỉ *</Label>
-            <Input 
-              name="address" 
-              value={form.address} 
-              onChange={handleChange} 
-              required 
-              placeholder="Nhập địa chỉ giao hàng"
-            />
-          </FormGroup>
+            <FormGroup>
+              <Label>Email</Label>
+              <Input 
+                name="email" 
+                value={form.email} 
+                onChange={handleChange} 
+                placeholder="Nhập email (tùy chọn)"
+                type="email"
+                hasError={!!errors.email}
+              />
+              <AnimatePresence>
+                {errors.email && (
+                  <ErrorMessage
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    {errors.email}
+                  </ErrorMessage>
+                )}
+              </AnimatePresence>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Địa chỉ đường/phố *</Label>
+              <Input 
+                name="street" 
+                value={form.street} 
+                onChange={handleChange} 
+                placeholder="Nhập địa chỉ đường/phố"
+                hasError={!!errors.street}
+              />
+              <AnimatePresence>
+                {errors.street && (
+                  <ErrorMessage
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    {errors.street}
+                  </ErrorMessage>
+                )}
+              </AnimatePresence>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Quận/huyện *</Label>
+              <Input 
+                name="district" 
+                value={form.district} 
+                onChange={handleChange} 
+                placeholder="Nhập quận/huyện"
+                hasError={!!errors.district}
+              />
+              <AnimatePresence>
+                {errors.district && (
+                  <ErrorMessage
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    {errors.district}
+                  </ErrorMessage>
+                )}
+              </AnimatePresence>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Thành phố/tỉnh *</Label>
+              <Input 
+                name="city" 
+                value={form.city} 
+                onChange={handleChange} 
+                placeholder="Nhập thành phố/tỉnh"
+                hasError={!!errors.city}
+              />
+              <AnimatePresence>
+                {errors.city && (
+                  <ErrorMessage
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    {errors.city}
+                  </ErrorMessage>
+                )}
+              </AnimatePresence>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Ghi chú</Label>
+              <Input 
+                name="note" 
+                value={form.note} 
+                onChange={handleChange} 
+                placeholder="Nhập ghi chú (tùy chọn)"
+                as="textarea"
+                rows={3}
+                hasError={!!errors.note}
+              />
+              <AnimatePresence>
+                {errors.note && (
+                  <ErrorMessage
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    {errors.note}
+                  </ErrorMessage>
+                )}
+              </AnimatePresence>
+            </FormGroup>
+          </FormSection>
+
+          {/* Payment Methods */}
+          <FormSection>
+            <SectionTitle>Phương thức thanh toán</SectionTitle>
+            
+            <PaymentMethodGrid>
+              <PaymentMethodCard
+                isSelected={form.payment === 'cod'}
+                onClick={() => setForm(prev => ({ ...prev, payment: 'cod' }))}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <PaymentMethodIcon>💵</PaymentMethodIcon>
+                <PaymentMethodName>Thanh toán khi nhận hàng</PaymentMethodName>
+                <PaymentMethodDesc>Trả tiền mặt khi giao hàng</PaymentMethodDesc>
+              </PaymentMethodCard>
+
+              <PaymentMethodCard
+                isSelected={form.payment === 'vnpay'}
+                onClick={() => setForm(prev => ({ ...prev, payment: 'vnpay' }))}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <PaymentMethodIcon>🏦</PaymentMethodIcon>
+                <PaymentMethodName>VNPay</PaymentMethodName>
+                <PaymentMethodDesc>Thanh toán online qua VNPay</PaymentMethodDesc>
+              </PaymentMethodCard>
+            </PaymentMethodGrid>
+          </FormSection>
+
+          {/* Order Summary */}
+          <FormSection>
+            <SectionTitle>Tóm tắt đơn hàng</SectionTitle>
+            
+            <OrderSummary>
+              {items.map((item) => (
+                <SummaryRow key={item.id}>
+                  <span>{item.name} x {item.qty}</span>
+                  <span>{formatVND(item.price * item.qty)}</span>
+                </SummaryRow>
+              ))}
+              <SummaryRow>
+                <span>Tạm tính</span>
+                <span>{formatVND(subtotal)}</span>
+              </SummaryRow>
+              <SummaryRow>
+                <span>Phí giao hàng</span>
+                <span>{formatVND(delivery)}</span>
+              </SummaryRow>
+              <SummaryRow>
+                <span>Thuế (8%)</span>
+                <span>{formatVND(tax)}</span>
+              </SummaryRow>
+              <SummaryRow>
+                <span>Tổng cộng</span>
+                <span>{formatVND(total)}</span>
+              </SummaryRow>
+            </OrderSummary>
+          </FormSection>
 
           <SubmitButton
             type="submit"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            disabled={isSubmitting || items.length === 0}
+            whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
+            whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
           >
-            Đặt hàng
+            {isSubmitting ? 'Đang xử lý...' : 'Đặt hàng'}
           </SubmitButton>
         </form>
       </CheckoutCard>
+
+      {/* VNPay Loading Modal */}
+      <AnimatePresence>
+        {showVNPayModal && (
+          <LoadingOverlay
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <LoadingCard
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+            >
+              <LoadingSpinner
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              />
+              <h3>Đang chuyển hướng đến VNPay...</h3>
+              <p>Vui lòng chờ trong giây lát</p>
+              <VNPayQRCode>
+                VNPay QR Code<br />
+                (Demo Mode)
+              </VNPayQRCode>
+            </LoadingCard>
+          </LoadingOverlay>
+        )}
+      </AnimatePresence>
     </CheckoutContainer>
   );
 };

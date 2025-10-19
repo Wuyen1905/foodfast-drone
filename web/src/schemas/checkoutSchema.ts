@@ -46,7 +46,7 @@ export const checkoutSchema = yup.object({
   
   payment: yup
     .string()
-    .oneOf(['visa', 'momo', 'zalopay', 'cod'], 'Phương thức thanh toán không hợp lệ')
+    .oneOf(['visa', 'momo', 'zalopay', 'cod', 'vnpay'], 'Phương thức thanh toán không hợp lệ')
     .required('Vui lòng chọn phương thức thanh toán')
 });
 

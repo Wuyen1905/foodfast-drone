@@ -31,13 +31,22 @@ export interface UserInfo {
   note?: string;
 }
 
+export interface VNPayPaymentData {
+  amount: number;
+  orderInfo: string;
+  orderId: string;
+  returnUrl: string;
+}
+
 export interface Order {
   time: number;
   items: OrderItem[];
   total: number;
   userInfo: UserInfo;
-  paymentMethod: 'visa' | 'momo' | 'zalopay' | 'cod';
+  paymentMethod: 'visa' | 'momo' | 'zalopay' | 'cod' | 'vnpay';
   status: 'Processing' | 'En Route' | 'Delivered';
+  paymentStatus?: 'pending' | 'completed' | 'failed';
+  vnpayTransactionId?: string;
 }
 
 export interface OrderInfo {
@@ -49,6 +58,6 @@ export interface OrderInfo {
   eta: number;
 }
 
-export type PaymentMethod = 'visa' | 'momo' | 'zalopay' | 'cod';
+export type PaymentMethod = 'visa' | 'momo' | 'zalopay' | 'cod' | 'vnpay';
 export type OrderStatus = 'Processing' | 'En Route' | 'Delivered';
 export type Theme = 'light' | 'dark';
