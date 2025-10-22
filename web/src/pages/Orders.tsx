@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useOrders } from "../context/OrderContext";
-import { useAuth } from "../AuthContext";
+import { useOrders } from "@/context/OrderContext";
+import { useAuth } from "@/context";
 import toast from "react-hot-toast";
 import styled from "styled-components";
 import { motion, useAnimation } from "framer-motion";

@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { products, getProductImage } from '../data/products';
-import { useCart } from '../context/CartContext';
+import { useCart } from '@/context/CartContext';
 import { formatVND } from '../utils/currency';
 import toast from 'react-hot-toast';
 

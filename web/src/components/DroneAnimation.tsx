@@ -191,7 +191,7 @@ const StatusSteps = styled.div`
   position: relative;
 `;
 
-const StatusStep = styled.div<{ active?: boolean; completed?: boolean }>`
+const StatusStep = styled.div<{ $active?: boolean; $completed?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -205,7 +205,7 @@ const StatusStep = styled.div<{ active?: boolean; completed?: boolean }>`
     left: 50%;
     right: -50%;
     height: 3px;
-    background: ${props => props.completed ? '#4caf50' : '#e9ecef'};
+    background: ${props => props.$completed ? '#4caf50' : '#e9ecef'};
     z-index: 1;
     border-radius: 2px;
   }
@@ -215,13 +215,13 @@ const StatusStep = styled.div<{ active?: boolean; completed?: boolean }>`
   }
 `;
 
-const StepIcon = styled.div<{ active?: boolean; completed?: boolean }>`
+const StepIcon = styled.div<{ $active?: boolean; $completed?: boolean }>`
   width: 32px;
   height: 32px;
   border-radius: 50%;
   background: ${props => 
-    props.completed ? 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)' : 
-    props.active ? 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)' : 
+    props.$completed ? 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)' : 
+    props.$active ? 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)' : 
     '#e9ecef'};
   color: white;
   display: flex;
@@ -234,11 +234,11 @@ const StepIcon = styled.div<{ active?: boolean; completed?: boolean }>`
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 `;
 
-const StepLabel = styled.span<{ active?: boolean }>`
+const StepLabel = styled.span<{ $active?: boolean }>`
   margin-top: 8px;
   font-size: 11px;
-  font-weight: ${props => props.active ? '600' : '400'};
-  color: ${props => props.active ? '#007bff' : '#6c757d'};
+  font-weight: ${props => props.$active ? '600' : '400'};
+  color: ${props => props.$active ? '#007bff' : '#6c757d'};
   text-align: center;
 `;
 
@@ -248,7 +248,7 @@ const ControlsContainer = styled.div`
   margin-top: 16px;
 `;
 
-const ControlButton = styled(motion.button)<{ variant: 'pause' | 'resume' }>`
+const ControlButton = styled(motion.button)<{ $variant: 'pause' | 'resume' }>`
   padding: 8px 16px;
   border: none;
   border-radius: 20px;
@@ -492,16 +492,16 @@ const DroneAnimation: React.FC<DroneAnimationProps> = ({
         {deliverySteps.map((step, index) => (
           <StatusStep
             key={step.key}
-            active={currentStep === index}
-            completed={currentStep > index || eta === 0}
+            $active={currentStep === index}
+            $completed={currentStep > index || eta === 0}
           >
             <StepIcon
-              active={currentStep === index}
-              completed={currentStep > index || eta === 0}
+              $active={currentStep === index}
+              $completed={currentStep > index || eta === 0}
             >
               {step.icon}
             </StepIcon>
-            <StepLabel active={currentStep === index}>
+            <StepLabel $active={currentStep === index}>
               {step.label}
             </StepLabel>
           </StatusStep>
@@ -510,7 +510,7 @@ const DroneAnimation: React.FC<DroneAnimationProps> = ({
       
       <ControlsContainer>
         <ControlButton
-          variant={isPaused ? 'resume' : 'pause'}
+          $variant={isPaused ? 'resume' : 'pause'}
           onClick={() => setIsPaused(!isPaused)}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}

@@ -10,7 +10,7 @@ export type Order = {
   status: "Processing" | "Delivering" | "Completed";
   dronePath?: string[];
   paymentMethod?: 'visa' | 'momo' | 'zalopay' | 'cod' | 'vnpay';
-  paymentStatus?: 'pending' | 'completed' | 'failed';
+  paymentStatus?: 'Đang chờ phê duyệt' | 'completed' | 'failed';
   vnpayTransactionId?: string;
 };
 
@@ -19,7 +19,7 @@ type OrderContextType = {
   addOrder: (order: Order) => void;
   getOrdersByPhone: (phone: string) => Order[];
   updateOrderStatus: (id: string, status: Order["status"]) => void;
-  updateOrderPaymentStatus: (id: string, paymentStatus: 'pending' | 'completed' | 'failed', transactionId?: string) => void;
+  updateOrderPaymentStatus: (id: string, paymentStatus: 'Đang chờ phê duyệt' | 'completed' | 'failed', transactionId?: string) => void;
 };
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -46,7 +46,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
   };
 
-  const updateOrderPaymentStatus = (id: string, paymentStatus: 'pending' | 'completed' | 'failed', transactionId?: string) => {
+  const updateOrderPaymentStatus = (id: string, paymentStatus: 'Đang chờ phê duyệt' | 'completed' | 'failed', transactionId?: string) => {
     setOrders((prev) => prev.map((o) => (o.id === id ? { 
       ...o, 
       paymentStatus,

@@ -102,24 +102,24 @@ const JourneyStages = styled.div`
   }
 `;
 
-const StageCard = styled(motion.div)<{ active?: boolean; completed?: boolean; color?: string }>`
+const StageCard = styled(motion.div)<{ $active?: boolean; $completed?: boolean; $color?: string }>`
   background: ${props => 
-    props.completed ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)' :
-    props.active ? (props.color || 'linear-gradient(135deg, #ff9800 0%, #ffc107 100%)') : 
+    props.$completed ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)' :
+    props.$active ? (props.$color || 'linear-gradient(135deg, #ff9800 0%, #ffc107 100%)') : 
     'var(--card)'};
-  color: ${props => props.active || props.completed ? 'white' : 'var(--text)'};
+  color: ${props => props.$active || props.$completed ? 'white' : 'var(--text)'};
   border-radius: 12px;
   padding: 16px 12px;
   text-align: center;
   position: relative;
   transition: all 0.3s ease;
   border: 2px solid ${props => 
-    props.completed ? '#28a745' :
-    props.active ? (props.color ? props.color.split(' ')[0] : '#ff9800') : 
+    props.$completed ? '#28a745' :
+    props.$active ? (props.$color ? props.$color.split(' ')[0] : '#ff9800') : 
     'var(--border)'};
-  box-shadow: ${props => props.active ? '0 4px 12px rgba(255, 152, 0, 0.3)' : 'var(--shadow)'};
+  box-shadow: ${props => props.$active ? '0 4px 12px rgba(255, 152, 0, 0.3)' : 'var(--shadow)'};
   
-  ${props => props.active && `
+  ${props => props.$active && `
     transform: translateY(-4px);
     box-shadow: 0 8px 20px rgba(255, 152, 0, 0.4);
   `}
@@ -425,9 +425,9 @@ const DroneJourney: React.FC<DroneJourneyProps> = ({
         {stages.map((stage, index) => (
           <StageCard
             key={stage.id}
-            active={droneState.currentStep === index}
-            completed={droneState.currentStep > index}
-            color={stage.color}
+            $active={droneState.currentStep === index}
+            $completed={droneState.currentStep > index}
+            $color={stage.color}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}

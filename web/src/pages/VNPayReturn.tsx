@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import styled from 'styled-components';
 import { validateVNPayCallback } from '../services/vnpay';
-import { useOrders } from '../context/OrderContext';
+import { useOrders } from '@/context/OrderContext';
 import toast from 'react-hot-toast';
 import { formatVND } from '../utils/currency';
 

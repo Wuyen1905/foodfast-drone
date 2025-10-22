@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 
-const LayoutContainer = styled.div<{ viewMode: 'mobile' | 'desktop' }>`
+const LayoutContainer = styled.div<{ $viewMode: 'mobile' | 'desktop' }>`
   position: relative;
   transition: all 0.3s ease;
   
-  ${props => props.viewMode === 'mobile' && `
+  ${props => props.$viewMode === 'mobile' && `
     max-width: 375px;
     margin: 0 auto;
     border: 2px solid var(--border);
@@ -16,7 +16,7 @@ const LayoutContainer = styled.div<{ viewMode: 'mobile' | 'desktop' }>`
     background: var(--card);
   `}
   
-  ${props => props.viewMode === 'desktop' && `
+  ${props => props.$viewMode === 'desktop' && `
     max-width: 100%;
     margin: 0;
     border: none;
@@ -39,19 +39,19 @@ const ToggleContainer = styled.div`
   border: 1px solid var(--border);
 `;
 
-const ToggleButton = styled(motion.button)<{ active: boolean }>`
+const ToggleButton = styled(motion.button)<{ $active: boolean }>`
   padding: 8px 12px;
   border: none;
   border-radius: 8px;
-  background: ${props => props.active ? 'var(--primary)' : 'transparent'};
-  color: ${props => props.active ? '#fff' : 'var(--text)'};
+  background: ${props => props.$active ? 'var(--primary)' : 'transparent'};
+  color: ${props => props.$active ? '#fff' : 'var(--text)'};
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
   transition: all 0.2s ease;
   
   &:hover {
-    background: ${props => props.active ? 'var(--primary)' : 'var(--border)'};
+    background: ${props => props.$active ? 'var(--primary)' : 'var(--border)'};
   }
 `;
 
@@ -81,7 +81,7 @@ const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({ children }) => {
     <>
       <ToggleContainer>
         <ToggleButton
-          active={viewMode === 'mobile'}
+          $active={viewMode === 'mobile'}
           onClick={() => setViewMode('mobile')}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -89,7 +89,7 @@ const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({ children }) => {
           📱 Mobile
         </ToggleButton>
         <ToggleButton
-          active={viewMode === 'desktop'}
+          $active={viewMode === 'desktop'}
           onClick={() => setViewMode('desktop')}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -98,7 +98,7 @@ const ResponsiveLayout: React.FC<ResponsiveLayoutProps> = ({ children }) => {
         </ToggleButton>
       </ToggleContainer>
       
-      <LayoutContainer viewMode={viewMode}>
+      <LayoutContainer $viewMode={viewMode}>
         {viewMode === 'mobile' ? (
           <MobileFrame>
             {children}

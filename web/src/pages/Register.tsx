@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { useAuth } from '../AuthContext';
+import { useAuth } from '@/context';
 import toast from 'react-hot-toast';
 
 const Page = styled.div`

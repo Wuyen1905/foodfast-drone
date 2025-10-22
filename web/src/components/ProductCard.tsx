@@ -3,10 +3,11 @@ import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Product, getProductImage } from '../data/products';
-import { useCart } from '../context/CartContext';
-import { useWishlist } from '../context/WishlistContext';
+import { useCart } from '@/context/CartContext';
+import { useWishlist } from '@/context/WishlistContext';
 import { formatVND } from '../utils/currency';
 import toast from 'react-hot-toast';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 
 const Card = styled(motion.div)<{ isAdmin?: boolean }>`
   background: var(--card);
@@ -179,9 +180,16 @@ type Props = {
 const ProductCard: React.FC<Props> = ({ product, isAdmin, onEdit, onDelete, onAddToCart }) => {
   const { add } = useCart();
   const { toggle, has } = useWishlist();
+  const { canAddToCart, isRestaurant } = useRoleGuard();
   const img = getProductImage(product);
 
-  const onAddCart = () => { 
+  const onAddCart = () => {
+    // Prevent restaurants from adding to cart
+    if (!canAddToCart()) {
+      toast.error('🚫 Tài khoản nhà hàng không thể thêm món vào giỏ hàng');
+      return;
+    }
+    
     if (onAddToCart) {
       onAddToCart(product);
     } else {
@@ -190,7 +198,13 @@ const ProductCard: React.FC<Props> = ({ product, isAdmin, onEdit, onDelete, onAd
     }
   };
   
-  const onWishlist = () => { 
+  const onWishlist = () => {
+    // Prevent restaurants from using wishlist
+    if (!canAddToCart()) {
+      toast.error('🚫 Tài khoản nhà hàng không thể sử dụng danh sách yêu thích');
+      return;
+    }
+    
     toggle(product.id); 
     toast.success(has(product.id) ? 'Đã xóa khỏi danh sách yêu thích' : 'Đã thêm vào danh sách yêu thích ❤️'); 
   };
@@ -238,6 +252,24 @@ const ProductCard: React.FC<Props> = ({ product, isAdmin, onEdit, onDelete, onAd
               style={{ color: '#e74c3c' }}
             >
               🗑️ Xóa
+            </Ghost>
+          </>
+        ) : isRestaurant ? (
+          <>
+            <Button 
+              onClick={() => toast('💡 Hãy vào trang Quản lý Menu để chỉnh sửa món ăn', { icon: '💡' })}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              style={{ background: '#FF6600', opacity: 0.7, cursor: 'not-allowed' }}
+              disabled
+            >
+              🏪 Nhà hàng
+            </Button>
+            <Ghost 
+              style={{ opacity: 0.5, cursor: 'not-allowed' }}
+              disabled
+            >
+              🚫
             </Ghost>
           </>
         ) : (

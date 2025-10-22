@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useOrders } from "../context/OrderContext";
-import { useCart } from "../context/CartContext";
-import { useAuth } from "../AuthContext";
+import { useOrders } from "@/context/OrderContext";
+import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context";
 import { formatVND } from "../utils/currency";
 import { createVNPayPaymentUrl, simulateVNPayPayment } from "../services/vnpay";
 import styled from "styled-components";
@@ -331,7 +331,7 @@ const Checkout: React.FC = () => {
           total,
           status: "Processing",
           paymentMethod: form.payment as any,
-          paymentStatus: form.payment === 'cod' ? 'pending' : 'completed',
+          paymentStatus: form.payment === 'cod' ? 'Đang chờ phê duyệt' : 'completed',
           dronePath: ["Nhà hàng", "Kho Drone", "Đang giao", "Hoàn tất"],
         });
         

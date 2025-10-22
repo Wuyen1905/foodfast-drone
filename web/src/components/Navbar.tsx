@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import styled from 'styled-components';
 import { NavLink } from 'react-router-dom';
-import { useCart } from '../context/CartContext';
-import { useAuth } from '../AuthContext';
+import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context';
 import toast from 'react-hot-toast';
 
 const Bar = styled.header`
@@ -138,7 +138,7 @@ const LogoutButton = styled.button`
 
 const Navbar: React.FC = () => {
   const { items } = useCart();
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isRestaurant, isCustomer } = useAuth();
   const count = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
   const [open, setOpen] = useState(false);
 
@@ -150,16 +150,15 @@ const Navbar: React.FC = () => {
   return (
     <Bar>
       <Inner>
-        <Brand to="/">FoodFast</Brand>
+        <Brand to="/menu">FoodFast</Brand>
         <Burger aria-label="menu" onClick={() => setOpen(o => !o)}>
           {open ? '✕' : '☰'}
         </Burger>
         <Links open={open}>
-          <A to="/" title="Trang chủ">Trang chủ</A>
           <A to="/menu" title="Xem thực đơn">Thực đơn</A>
           
-          {/* Show cart and checkout only for regular users (not admin) */}
-          {user && !isAdmin() && (
+          {/* Show cart and checkout only for customers */}
+          {user && isCustomer() && (
             <>
               <CartLink to="/cart" title="Xem giỏ hàng" data-count={count}>Giỏ hàng</CartLink>
               <A to="/checkout" title="Thanh toán">Thanh toán</A>
@@ -171,10 +170,25 @@ const Navbar: React.FC = () => {
             <A to="/orders" title="Theo dõi đơn hàng & Drone">Theo dõi đơn hàng</A>
           )}
           
+          {/* Role-based navigation */}
+          {user && isAdmin() && (
+            <A to="/admin" title="Bảng điều khiển quản trị">Quản trị</A>
+          )}
+          
+          {user && isRestaurant() && (
+            <>
+              <A to="/restaurant" title="Bảng điều khiển nhà hàng">Nhà hàng</A>
+              {user.restaurantId === 'rest_2' && (
+                <A to="/sweetdreams" title="SweetDreams Bakery">SweetDreams</A>
+              )}
+            </>
+          )}
+          
           {user ? (
             <UserMenu>
               <span style={{ color: 'var(--text)', fontSize: '14px' }}>
-                Xin chào, {user?.name}! ({isAdmin() ? 'Quản trị viên' : 'Người dùng'})
+                Xin chào, {user?.name}! ({isAdmin() ? 'Quản trị viên' : 
+                isRestaurant() ? 'Nhà hàng' : 'Khách hàng'})
               </span>
               <LogoutButton onClick={handleLogout}>
                 Đăng xuất

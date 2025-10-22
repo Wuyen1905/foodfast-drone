@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../AuthContext';
-import { useOrders } from '../context/OrderContext';
+import { useAuth } from '@/context/AuthContext';
+import { useOrders } from '@/context/OrderContext';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -142,14 +142,14 @@ const TableHeaderCell = styled.th`
 
 const TableBody = styled.tbody``;
 
-const TableRow = styled.tr<{ status: string }>`
+const TableRow = styled.tr<{ $status: string }>`
   transition: background-color 0.2s ease;
   
   &:hover {
     background: #f8f9fa;
   }
   
-  ${props => props.status === 'Delivering' && `
+  ${props => props.$status === 'Delivering' && `
     background: rgba(33, 150, 243, 0.05);
   `}
 `;
@@ -161,7 +161,7 @@ const TableCell = styled.td`
   color: #333;
 `;
 
-const StatusBadge = styled.span<{ status: string }>`
+const StatusBadge = styled.span<{ $status: string }>`
   display: inline-block;
   padding: 4px 12px;
   border-radius: 20px;
@@ -170,7 +170,7 @@ const StatusBadge = styled.span<{ status: string }>`
   text-transform: uppercase;
   
   ${props => {
-    switch(props.status) {
+    switch(props.$status) {
       case 'Processing': return 'background: #fff3cd; color: #856404; border: 1px solid #ffeaa7;';
       case 'Delivering': return 'background: #cce5ff; color: #004085; border: 1px solid #99d6ff;';
       case 'Completed': return 'background: #d4edda; color: #155724; border: 1px solid #a3e4a3;';
@@ -179,7 +179,7 @@ const StatusBadge = styled.span<{ status: string }>`
   }}
 `;
 
-const ActionButton = styled.button<{ variant: string }>`
+const ActionButton = styled.button<{ $variant: string }>`
   padding: 6px 12px;
   border: none;
   border-radius: 6px;
@@ -190,7 +190,7 @@ const ActionButton = styled.button<{ variant: string }>`
   transition: all 0.2s ease;
   
   ${props => {
-    switch(props.variant) {
+    switch(props.$variant) {
       case 'processing': return 'background: #ffc107; color: white;';
       case 'delivering': return 'background: #007bff; color: white;';
       case 'completed': return 'background: #28a745; color: white;';
@@ -225,31 +225,31 @@ const EmptySubtitle = styled.p`
   color: #666;
 `;
 
-const DroneStatus = styled.div<{ isActive: boolean }>`
+const DroneStatus = styled.div<{ $isActive: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: ${props => props.isActive ? '#007bff' : '#6c757d'};
+  color: ${props => props.$isActive ? '#007bff' : '#6c757d'};
   
   &::before {
-    content: '${props => props.isActive ? '🛫' : '⏸️'}';
+    content: '${props => props.$isActive ? '🛫' : '⏸️'}';
   }
 `;
 
-const AdminDashboard: React.FC = () => {
+const RestaurantDashboard: React.FC = () => {
   const demandAuth = useAuth();
   const { orders, updateOrderStatus } = useOrders();
   const [refreshing, setRefreshing] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
 
-  // Check if user is admin
-  if (!demandAuth.user || demandAuth.user.role !== 'admin') {
+  // Check if user is restaurant owner
+  if (!demandAuth.user || (demandAuth.user.role !== 'restaurant' && demandAuth.user.role !== 'admin')) {
     return (
       <DashboardContainer>
         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
           <h2>🚫 Truy cập bị từ chối</h2>
-          <p>Bạn không có quyền truy cập trang này. Vui lòng đăng nhập với tài khoản admin.</p>
+          <p>Bạn không có quyền truy cập trang này. Vui lòng đăng nhập với tài khoản nhà hàng.</p>
         </div>
       </DashboardContainer>
     );
@@ -286,7 +286,7 @@ const AdminDashboard: React.FC = () => {
   return (
     <DashboardContainer>
       <DashboardHeader>
-        <DashboardTitle>Bảng điều khiển quản trị</DashboardTitle>
+        <DashboardTitle>Bảng điều khiển nhà hàng</DashboardTitle>
         <DashboardSubtitle>Quản lý đơn hàng và theo dõi drone giao hàng</DashboardSubtitle>
       </DashboardHeader>
 
@@ -385,7 +385,7 @@ const AdminDashboard: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {orders.map((order) => (
-                  <TableRow key={order.id} status={order.status}>
+                  <TableRow key={order.id} $status={order.status}>
                     <TableCell>
                       <strong>#{order.id.slice(-6)}</strong>
                     </TableCell>
@@ -393,30 +393,30 @@ const AdminDashboard: React.FC = () => {
                     <TableCell>{order.phone}</TableCell>
                     <TableCell>{formatVND(order.total)}</TableCell>
                     <TableCell>
-                      <StatusBadge status={order.status}>
+                      <StatusBadge $status={order.status}>
                         {getStatusLabel(order.status)}
                       </StatusBadge>
                     </TableCell>
                     <TableCell>
-                      <DroneStatus isActive={order.status === 'Delivering'}>
+                      <DroneStatus $isActive={order.status === 'Delivering'}>
                         {order.status === 'Delivering' ? 'Đang bay' : 'Không hoạt động'}
                       </DroneStatus>
                     </TableCell>
                     <TableCell>
                       <ActionButton
-                        variant="processing"
+                        $variant="processing"
                         onClick={() => handleStatusUpdate(order.id, 'Processing')}
                       >
                         Chuẩn bị
                       </ActionButton>
                       <ActionButton
-                        variant="delivering"
+                        $variant="delivering"
                         onClick={() => handleStatusUpdate(order.id, 'Delivering')}
                       >
                         Giao hàng
                       </ActionButton>
                       <ActionButton
-                        variant="completed"
+                        $variant="completed"
                         onClick={() => handleStatusUpdate(order.id, 'Completed')}
                       >
                         Hoàn tất
@@ -447,4 +447,4 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-export default AdminDashboard;
+export default RestaurantDashboard;

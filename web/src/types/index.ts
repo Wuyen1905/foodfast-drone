@@ -5,7 +5,7 @@ export interface Product {
   image?: string;
   description: string;
   tag?: 'Hot' | 'New';
-  category: 'Burger' | 'Pizza' | 'Sushi';
+  category: 'Burger' | 'Pizza' | 'Sushi' | 'Dessert';
 }
 
 export interface CartItem {
@@ -45,7 +45,7 @@ export interface Order {
   userInfo: UserInfo;
   paymentMethod: 'visa' | 'momo' | 'zalopay' | 'cod' | 'vnpay';
   status: 'Processing' | 'En Route' | 'Delivered';
-  paymentStatus?: 'pending' | 'completed' | 'failed';
+  paymentStatus?: 'Đang chờ phê duyệt' | 'completed' | 'failed';
   vnpayTransactionId?: string;
 }
 

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { products } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import ProductCardSkeletons from '../components/ProductCardSkeleton';
-import { useAuth } from '../AuthContext';
+import { useAuth } from '@/context';
 import AdminDashboard from './AdminDashboard';
 
 const Page = styled.div`

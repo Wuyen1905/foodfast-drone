@@ -3,8 +3,8 @@ import styled from 'styled-components';
 import { motion, useAnimation } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { useAuth } from '../AuthContext';
-import { useOrders } from '../context/OrderContext';
+import { useAuth } from '@/context';
+import { useOrders } from '@/context/OrderContext';
 
 const Page = styled.div`
   padding: var(--spacing-xl) var(--spacing-lg);

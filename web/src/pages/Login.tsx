@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../AuthContext";
+import { useAuth } from "@/context";
 import styled from "styled-components";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
@@ -160,7 +160,7 @@ const BackToHome = styled(motion.div)`
 `;
 
 const Login: React.FC = () => {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
   const location: any = useLocation();
   const from = location.state?.from?.pathname || "/";
@@ -169,23 +169,112 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
+
+  // Get redirect path based on user role and restaurant (memoized to prevent infinite loops)
+  const getRedirectPath = useCallback((loggedInUser: any): string => {
+    console.log("🧭 [Login] Calculating redirect path for user:", { 
+      username: loggedInUser?.username, 
+      role: loggedInUser?.role, 
+      restaurantId: loggedInUser?.restaurantId 
+    });
+    
+    if (!loggedInUser) {
+      console.log("⚠️ [Login] No user provided, returning from:", from);
+      return from;
+    }
+
+    // Restaurant-specific redirects
+    if (loggedInUser.role === 'restaurant') {
+      // SweetDreams Bakery
+      if (loggedInUser.restaurantId === 'rest_2' || loggedInUser.username === 'sweetdreams') {
+        console.log("🍰 [Login] Redirecting to SweetDreams dashboard");
+        return '/restaurant/sweetdreams';
+      }
+      // Aloha Kitchen
+      if (loggedInUser.restaurantId === 'restaurant_2' || loggedInUser.username === 'aloha_restaurant') {
+        console.log("🍜 [Login] Redirecting to Aloha dashboard");
+        return '/restaurant/aloha';
+      }
+      // Generic restaurant dashboard
+      console.log("🏪 [Login] Redirecting to generic restaurant dashboard");
+      return '/restaurant';
+    }
+
+    // Admin redirect
+    if (loggedInUser.role === 'admin') {
+      console.log("👨‍💼 [Login] Redirecting to admin dashboard");
+      return '/admin';
+    }
+
+    // Customer - redirect to previous page or home
+    const customerPath = from === '/login' ? '/' : from;
+    console.log("👤 [Login] Redirecting customer to:", customerPath);
+    return customerPath;
+  }, [from]);
+
+  // Auto-redirect when user is authenticated after login
+  useEffect(() => {
+    console.log("🔄 [Login useEffect] Triggered with:", { 
+      loginSuccess, 
+      hasUser: !!user,
+      username: user?.username,
+      role: user?.role 
+    });
+    
+    if (loginSuccess && user) {
+      const redirectPath = getRedirectPath(user);
+      console.log("✅ [Login] Auto-redirecting authenticated user to:", redirectPath);
+      console.log("👤 [Login] Full user data:", user);
+      
+      // Small delay to ensure state is fully updated
+      const timer = setTimeout(() => {
+        console.log("🚀 [Login] Executing navigate() to:", redirectPath);
+        navigate(redirectPath, { replace: true });
+        console.log("✅ [Login] navigate() called successfully");
+      }, 100);
+
+      return () => {
+        console.log("🧹 [Login] Cleaning up navigation timer");
+        clearTimeout(timer);
+      };
+    } else {
+      if (loginSuccess && !user) {
+        console.warn("⚠️ [Login] loginSuccess is true but user is null!");
+      }
+    }
+  }, [user, loginSuccess, navigate, getRedirectPath]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("📝 [Login] Form submitted with username:", username);
+    
     setBusy(true);
     setError(null);
+    setLoginSuccess(false);
     
     try {
+      console.log("📞 [Login] Calling login() function...");
       const res = await login(username.trim(), password);
-      setBusy(false);
+      console.log("📨 [Login] Login response received:", res);
+      
       if (res.ok) {
+        console.log("✅ [Login] Login succeeded, showing success toast");
         toast.success("🎉 Đăng nhập thành công!");
-        navigate(from, { replace: true });
+        
+        console.log("🎯 [Login] Setting loginSuccess flag to true");
+        // Set login success flag to trigger useEffect navigation
+        setLoginSuccess(true);
+        console.log("✅ [Login] loginSuccess flag set, useEffect should trigger soon");
       } else {
+        console.log("❌ [Login] Login failed:", res.message);
         setError(res.message || "Đăng nhập thất bại");
         toast.error(res.message || "Đăng nhập thất bại");
       }
+      
+      setBusy(false);
     } catch (error) {
+      console.error("💥 [Login] Exception during login:", error);
       setBusy(false);
       setError("Có lỗi xảy ra, vui lòng thử lại");
       toast.error("Có lỗi xảy ra, vui lòng thử lại");
@@ -254,7 +343,10 @@ const Login: React.FC = () => {
           <CredentialsTitle>📋 Tài khoản mẫu:</CredentialsTitle>
           <CredentialsList>
             <div><strong>Admin:</strong> admin / admin123</div>
-            <div><strong>User:</strong> user / user123</div>
+            <div><strong>Customer:</strong> user / user123</div>
+            <div><strong>Customer:</strong> user1 / user1123</div>
+            <div><strong>Restaurant (SweetDreams):</strong> sweetdreams / sweet123</div>
+            <div><strong>Restaurant (Aloha):</strong> aloha_restaurant / aloha123</div>
           </CredentialsList>
         </CredentialsBox>
 
