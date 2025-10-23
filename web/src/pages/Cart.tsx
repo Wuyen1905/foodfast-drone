@@ -91,7 +91,7 @@ const Cart: React.FC = () => {
   const productMap = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), []);
   const [loading, setLoading] = useState(true);
   
-  const delivery = 2.5;
+  const delivery = 25000; // 25,000 VND
   const tax = subtotal * 0.08;
   const total = subtotal + tax + delivery;
 

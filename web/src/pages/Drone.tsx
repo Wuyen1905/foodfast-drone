@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context';
 import { useOrders } from '@/context/OrderContext';
+import { formatVND } from '@/utils/currency';
 
 const Page = styled.div`
   padding: var(--spacing-xl) var(--spacing-lg);
@@ -325,7 +326,7 @@ const Drone: React.FC = () => {
                 <div>
                   <div style={{ fontWeight: 700 }}>Đơn hàng #{order.id.slice(-6)}</div>
                   <div style={{ color: 'var(--secondaryText)' }}>
-                    {new Date(order.time).toLocaleDateString('vi-VN')} - ${order.total.toFixed(2)}
+                    {new Date(order.time).toLocaleDateString('vi-VN')} - {formatVND(order.total)}
                   </div>
                   <div style={{ color: 'var(--secondaryText)' }}>
                     Trạng thái: <strong>{order.status}</strong>

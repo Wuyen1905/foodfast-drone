@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { Order } from '@/types/auth';
 import AdminNavigation from '@/components/admin/AdminNavigation';
+import { formatVND } from '@/utils/currency';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -218,10 +219,6 @@ const AdminOrders: React.FC = () => {
     return new Date(timestamp).toLocaleString();
   };
 
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2)}`;
-  };
-
   const filteredOrders = statusFilter === 'all' 
     ? orders 
     : orders.filter(order => order.status === statusFilter);
@@ -297,7 +294,7 @@ const AdminOrders: React.FC = () => {
                   </small>
                 </TableCell>
                 <TableCell>
-                  <strong>{formatCurrency(order.total)}</strong>
+                  <strong>{formatVND(order.total)}</strong>
                 </TableCell>
                 <TableCell>
                   <StatusBadge $status={order.status}>

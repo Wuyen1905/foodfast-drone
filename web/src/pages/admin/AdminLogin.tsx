@@ -105,26 +105,26 @@ const AdminLogin: React.FC = () => {
   return (
     <LoginContainer>
       <LoginBox>
-        <Title>🔐 Admin Login</Title>
+        <Title>🔐 Đăng nhập quản trị</Title>
         <Form onSubmit={handleSubmit}>
           <Input
             type="text"
-            placeholder="Username"
+            placeholder="Tên đăng nhập"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
           />
           <Input
             type="password"
-            placeholder="Password"
+            placeholder="Mật khẩu"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
           <Button type="submit" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Button>
-          {error && <ErrorMessage>{error}</ErrorMessage>}
+          {error && <ErrorMessage>{error === 'Invalid admin credentials' ? 'Thông tin đăng nhập không hợp lệ' : error}</ErrorMessage>}
         </Form>
       </LoginBox>
     </LoginContainer>

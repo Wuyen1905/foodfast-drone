@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { Product, products as initialProducts } from '../../data/products';
+import { formatVND } from '../../utils/currency';
 
 interface Theme {
   primary: string;
@@ -491,10 +492,6 @@ const MenuManagement: React.FC<MenuManagementProps> = ({ restaurantId, theme }) 
     }
   };
 
-  const formatPrice = (price: number) => {
-    return `$${price.toFixed(2)}`;
-  };
-
   const categories = Array.from(new Set(initialProducts.map(p => p.category)));
 
   return (
@@ -551,7 +548,7 @@ const MenuManagement: React.FC<MenuManagementProps> = ({ restaurantId, theme }) 
                   <ProductDescription>{product.description}</ProductDescription>
                   <ProductMeta>
                     <ProductPrice $primary={theme.primary}>
-                      {formatPrice(product.price)}
+                      {formatVND(product.price)}
                     </ProductPrice>
                     <ProductCategory>{product.category}</ProductCategory>
                   </ProductMeta>
@@ -602,14 +599,14 @@ const MenuManagement: React.FC<MenuManagementProps> = ({ restaurantId, theme }) 
             </FormGroup>
 
             <FormGroup>
-              <Label>Giá ($) *</Label>
+              <Label>Giá (₫) *</Label>
               <Input
                 type="number"
-                step="0.01"
+                step="1000"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                 required
-                placeholder="0.00"
+                placeholder="50000"
               />
             </FormGroup>
 

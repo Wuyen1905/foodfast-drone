@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import dayjs from 'dayjs';
 import PaymentIcons from './PaymentIcons';
+import { formatVND } from '../utils/currency';
 
 const Card = styled.div`
   background: var(--card); 
@@ -122,16 +123,16 @@ const OrderCard: React.FC<Props> = ({ order, index, onViewDetails, isAdmin }) =>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontWeight: 800 }}>
-            ${(() => {
+            {(() => {
               if (typeof order.total === 'number' && !isNaN(order.total)) {
-                return order.total.toFixed(2);
+                return formatVND(order.total);
               }
               const calculatedTotal = order.items?.reduce((sum: number, i: any) => {
                 const price = Number(i.price) || 0;
                 const qty = Number(i.qty) || 0;
                 return sum + (price * qty);
               }, 0) || 0;
-              return calculatedTotal.toFixed(2);
+              return formatVND(calculatedTotal);
             })()}
           </div>
           <div style={{ color: 'var(--secondaryText)' }}>
@@ -179,7 +180,7 @@ const OrderCard: React.FC<Props> = ({ order, index, onViewDetails, isAdmin }) =>
             const qty = Number(i.qty) || 0;
             return (
               <div key={idx} style={{ marginBottom: 4 }}>
-                {i.name} × {qty} — ${(price * qty).toFixed(2)}
+                {i.name} × {qty} — {formatVND(price * qty)}
               </div>
             );
           })}
