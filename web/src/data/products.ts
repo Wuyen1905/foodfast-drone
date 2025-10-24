@@ -1,238 +1,146 @@
-export type Product = {
+// Unified products data source for both SweetDreams and Aloha restaurants
+export interface Product {
   id: string;
   name: string;
   price: number;
-  image?: string;
-  description: string;
-  tag?: 'Hot' | 'New';
-  category: 'Burger' | 'Pizza' | 'Sushi' | 'Dessert' | 'Rice' | 'Noodles' | 'Asian' | 'Hawaiian';
-  restaurantId?: string; // Restaurant association
-  isAvailable?: boolean; // Availability status (default: true)
-};
-
-export const PLACEHOLDERS = {
-  Burger: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=1200&q=80',
-  Pizza: 'https://images.unsplash.com/photo-1601924582971-1c9d8c1e0d9b?w=1200&q=80',
-  Sushi: 'https://images.unsplash.com/photo-1562158070-622a0c5145cf?w=1200&q=80',
-  Dessert: 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=1200&q=80',
-  Rice: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=1200&q=80',
-  Noodles: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=1200&q=80',
-  Asian: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=1200&q=80',
-  Hawaiian: 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=1200&q=80',
-};
+  category: string;
+  image: string;
+  restaurant: "SweetDreams" | "Aloha";
+  available: boolean;
+  description?: string;
+  ingredients?: string[];
+  preparationTime?: number;
+}
 
 export const products: Product[] = [
-  // FoodFast Restaurant Items (rest_1)
+  // SweetDreams Bakery Products
   {
-    id: '1',
-    name: 'Burger Drone',
-    price: 150000,
-    image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=800&q=80',
-    description: 'Juicy grilled burger with fresh lettuce and sauce.',
-    tag: 'Hot',
-    category: 'Burger',
-    restaurantId: 'rest_1',
+    id: "sd-001",
+    name: "Bánh Donut",
+    price: 25000,
+    category: "Bánh ngọt",
+    image: "https://images.unsplash.com/photo-1612197527828-6e0efb93cf5d?w=400&h=300&fit=crop",
+    restaurant: "SweetDreams",
+    available: true,
+    description: "Bánh donut phủ đường giòn rụm, hương vị thơm ngon cho buổi sáng năng động",
+    ingredients: ["Bột mì", "Đường", "Men", "Dầu chiên", "Socola"],
+    preparationTime: 12
   },
   {
-    id: '2',
-    name: 'Pizza Sky',
-    price: 200000,
-    image: 'https://png.pngtree.com/thumb_back/fh260/background/20250205/pngtree-melting-pizza-slice-in-space-with-blue-and-red-background-image_16896342.jpg',
-    description: 'Cheesy pepperoni pizza with tomato base.',
-    tag: 'New',
-    category: 'Pizza',
-    restaurantId: 'rest_1',
+    id: "sd-002",
+    name: "Bánh Tiramisu",
+    price: 55000,
+    category: "Tráng miệng",
+    image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&h=300&fit=crop",
+    restaurant: "SweetDreams",
+    available: true,
+    description: "Bánh tiramisu truyền thống Ý với mascarpone và cà phê, hương vị đậm đà",
+    ingredients: ["Mascarpone", "Cà phê espresso", "Cacao", "Biscotti", "Trứng"],
+    preparationTime: 20
   },
   {
-    id: '3',
-    name: 'Sushi Fly',
-    price: 280000,
-    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80',
-    description: 'Fresh salmon sushi with soy sauce and wasabi.',
-    category: 'Sushi',
-    restaurantId: 'rest_1',
+    id: "sd-003",
+    name: "Bánh Phô Mai Dâu",
+    price: 45000,
+    category: "Tráng miệng",
+    image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop",
+    restaurant: "SweetDreams",
+    available: true,
+    description: "Bánh phô mai dâu tươi với lớp kem mềm mịn, vị ngọt thanh",
+    ingredients: ["Phô mai cream", "Dâu tươi", "Bánh quy", "Kem tươi", "Gelatin"],
+    preparationTime: 18
   },
   {
-    id: '4',
-    name: 'Double Burger',
-    price: 220000,
-    image: 'https://images.unsplash.com/photo-1550317138-10000687a72b?w=800&q=80',
-    description: 'Double beef burger with cheese and pickles.',
-    category: 'Burger',
-    restaurantId: 'rest_1',
+    id: "sd-004",
+    name: "Bánh Croissant",
+    price: 35000,
+    category: "Bánh ngọt",
+    image: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=400&h=300&fit=crop",
+    restaurant: "SweetDreams",
+    available: true,
+    description: "Bánh croissant bơ thơm ngon, lớp vỏ giòn tan",
+    ingredients: ["Bột mì", "Bơ", "Men", "Muối", "Sữa"],
+    preparationTime: 25
   },
   {
-    id: '5',
-    name: 'Pepperoni Lift',
-    price: 240000,
-    image: 'https://thumbs.dreamstime.com/b/pepperoni-pizza-slice-lift-melted-cheese-box-pepperoni-pizza-slice-lift-melted-cheese-box-349528217.jpg?w=992',
-    description: 'Crispy pepperoni pizza baked to perfection.',
-    category: 'Pizza',
-    restaurantId: 'rest_1',
-  },
-  {
-    id: '6',
-    name: 'Rainbow Sushi',
-    price: 320000,
-    image: 'https://th.bing.com/th/id/R.8b296e4ac3888bb6e70504928e6f8e24?rik=UvkyqeD4uJbR9g&pid=ImgRaw&r=0',
-    description: 'Colorful sushi rolls with tuna, salmon, and avocado.',
-    category: 'Sushi',
-    restaurantId: 'rest_1',
-  },
-  // SweetDreams Bakery Desserts (rest_2)
-  {
-    id: '7',
-    name: 'Strawberry Dream Cake',
-    price: 350000,
-    image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=800&q=80',
-    description: 'Bản giao hưởng sô cô la lộng lẫy. Những dòng ganache óng ả, đặc quánh buông lơi như dải lụa mềm, bao trọn lấy cốt bánh ẩm mượt. Trên đỉnh, từng đóa hồng kem bơ sô cô la nở rộ, mời gọi một trải nghiệm ngọt ngào đầy đê mê.',
-    tag: 'New',
-    category: 'Dessert',
-    restaurantId: 'rest_2',
-  },
-  {
-    id: '8',
-    name: 'Chocolate Heaven',
-    price: 280000,
-    image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=800&q=80',
-    description: 'Từng khối brownie ẩm mượt, đặc quánh xếp chồng, phô diễn kết cấu "fudgy" quyến rũ. Dòng sốt sô cô la nóng hổi đang lười biếng chảy tràn, đánh thức mọi giác quan với sự nồng nàn, nguyên chất.',
-    tag: 'Hot',
-    category: 'Dessert',
-    restaurantId: 'rest_2',
-  },
-  {
-    id: '9',
-    name: 'Vanilla Cupcake Delight',
-    price: 200000,
-    image: 'https://tse3.mm.bing.net/th/id/OIP.lE-x_V_iDgozmz4Qv09PowHaHa?cb=12&rs=1&pid=ImgDetMain&o=7&rm=3',
-    description: 'Chiếc cupcake xốp mềm tựa như nhung, nâng đỡ "đám mây" kem bơ mịn màng, cuộn xoắn đầy duyên dáng. Một vẻ đẹp tinh tế, cổ điển, hứa hẹn sự ngọt ngào tan chảy nhẹ nhàng.',
-    category: 'Dessert',
-    restaurantId: 'rest_2',
-  },
-  {
-    id: '10',
-    name: 'Red Velvet Magic',
-    price: 320000,
-    image: 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=800&q=80',
-    description: 'Dòng caramel vàng óng và sô cô la đậm đặc đang lười biếng tuôn chảy, quyện lấy viên kem vani mát lạnh. Một khoảnh khắc bùng nổ của sự ngọt ngào tương phản, tan chảy ngay trên đầu lưỡi.',
-    category: 'Dessert',
-    restaurantId: 'rest_2',
-  },
-  {
-    id: '11',
-    name: 'Tiramisu Paradise',
-    price: 380000,
-    image: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=800&q=80',
-    description: 'Từng tầng kem mascarpone mềm mượt tựa áng mây, ôm ấp lấy những ngón tay thấm đẫm vị cà phê nồng nàn. Lớp bột ca cao đắng nhẹ phủ trên như một tấm màn nhung, đánh thức một trải nghiệm lãng mạn và tinh tế.',
-    category: 'Dessert',
-    restaurantId: 'rest_2',
-  },
-  {
-    id: '12',
-    name: 'Cheesecake Bliss',
-    price: 300000,
-    image: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=800&q=80',
-    description: 'Trên nền đế bánh quy vàng giòn, lớp phô mai mịn màng, béo ngậy như lụa. Thắp sáng trên cùng là vầng sốt việt quất tím thẫm, căng mọng, mang đến sự cân bằng chua ngọt đầy vương vấn.',
-    category: 'Dessert',
-    restaurantId: 'rest_2',
+    id: "sd-005",
+    name: "Bánh Flan",
+    price: 30000,
+    category: "Tráng miệng",
+    image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=400&h=300&fit=crop",
+    restaurant: "SweetDreams",
+    available: true,
+    description: "Bánh flan caramel mềm mịn, vị ngọt đậm đà",
+    ingredients: ["Trứng", "Sữa", "Đường", "Vanilla", "Caramel"],
+    preparationTime: 15
   },
 
-  // Aloha Kitchen - Asian Fusion / Bento / Dim Sum (restaurant_2)
+  // Aloha Kitchen Products
   {
-    id: '13',
-    name: 'Hawaiian Fried Rice',
-    price: 260000,
-    image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=800&q=80',
-    description: 'Tropical fried rice with pineapple, ham, and vegetables.',
-    tag: 'Hot',
-    category: 'Rice',
-    restaurantId: 'restaurant_2',
+    id: "ak-001",
+    name: "Hamburger",
+    price: 79000,
+    category: "Món chính",
+    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop",
+    restaurant: "Aloha",
+    available: true,
+    description: "Hamburger thịt bò nướng với rau tươi và phô mai, hương vị đậm đà",
+    ingredients: ["Bánh hamburger", "Thịt bò", "Phô mai", "Rau xà lách", "Cà chua", "Dưa leo"],
+    preparationTime: 15
   },
   {
-    id: '14',
-    name: 'Bento Box Lunch',
-    price: 310000,
-    image: 'https://images.unsplash.com/photo-1564834744159-ff0ea41ba4b9?w=800&q=80',
-    description: 'Complete bento meal with teriyaki chicken, rice, vegetables, and miso soup.',
-    tag: 'New',
-    category: 'Rice',
-    restaurantId: 'restaurant_2',
+    id: "ak-002",
+    name: "Pizza Hawaii",
+    price: 89000,
+    category: "Món chính",
+    image: "https://images.unsplash.com/photo-1600628422018-90e6f90b14c4?w=400&h=300&fit=crop",
+    restaurant: "Aloha",
+    available: true,
+    description: "Pizza Hawaii với phô mai tan chảy và dứa ngọt, hương vị hòa quyện hoàn hảo",
+    ingredients: ["Bột pizza", "Phô mai mozzarella", "Dứa", "Thịt nguội", "Sốt cà chua"],
+    preparationTime: 20
   },
   {
-    id: '15',
-    name: 'Office Rice Meals',
-    price: 220000,
-    image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=800&q=80',
-    description: 'Quick and nutritious rice meals perfect for busy professionals.',
-    category: 'Rice',
-    restaurantId: 'restaurant_2',
+    id: "ak-003",
+    name: "Cơm Chiên Hawaii",
+    price: 69000,
+    category: "Món chính",
+    image: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400&h=300&fit=crop",
+    restaurant: "Aloha",
+    available: true,
+    description: "Cơm chiên Hawaii với thịt nướng và dứa tươi, hương vị nhiệt đới",
+    ingredients: ["Cơm", "Thịt heo nướng", "Dứa", "Rau củ", "Trứng", "Tỏi"],
+    preparationTime: 18
   },
   {
-    id: '16',
-    name: 'Stir-Fried Noodles',
-    price: 245000,
-    image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&q=80',
-    description: 'Savory stir-fried noodles with vegetables and choice of protein.',
-    tag: 'Hot',
-    category: 'Noodles',
-    restaurantId: 'restaurant_2',
+    id: "ak-004",
+    name: "Chả Giò Chiên",
+    price: 45000,
+    category: "Món chính",
+    image: "https://images.unsplash.com/photo-1563379091339-03246963d4b0?w=400&h=300&fit=crop",
+    restaurant: "Aloha",
+    available: true,
+    description: "Chả giò chiên giòn rụm với thịt và rau củ, ăn kèm nước mắm chua ngọt",
+    ingredients: ["Bánh tráng", "Thịt heo", "Tôm", "Rau củ", "Miến", "Gia vị"],
+    preparationTime: 25
   },
   {
-    id: '17',
-    name: 'Stir-Fried Vermicelli',
-    price: 240000,
-    image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=800&q=80',
-    description: 'Light and flavorful vermicelli noodles with fresh vegetables.',
-    category: 'Noodles',
-    restaurantId: 'restaurant_2',
-  },
-  {
-    id: '18',
-    name: 'Burritos',
-    price: 290000,
-    image: 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=800&q=80',
-    description: 'Hawaiian-style burrito with grilled chicken, pineapple salsa, and rice.',
-    tag: 'New',
-    category: 'Hawaiian',
-    restaurantId: 'restaurant_2',
-  },
-  {
-    id: '19',
-    name: 'Fresh Spring Rolls (Gỏi cuốn)',
-    price: 200000,
-    image: 'https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800&q=80',
-    description: 'Light and healthy rice paper rolls with shrimp, herbs, and peanut sauce.',
-    category: 'Asian',
-    restaurantId: 'restaurant_2',
-  },
-  {
-    id: '20',
-    name: 'Fried Spring Rolls (Chả giò)',
-    price: 220000,
-    image: 'https://th.bing.com/th/id/OIP.KUGmFTZprLWgPDdf1QxUxAHaHa?o=7&cb=12rm=3&rs=1&pid=ImgDetMain&o=7&rm=3',
-    description: 'Golden crispy fried rolls filled with pork, vegetables, and glass noodles.',
-    tag: 'Hot',
-    category: 'Asian',
-    restaurantId: 'restaurant_2',
-  },
-  {
-    id: '21',
-    name: 'Dim Sum',
-    price: 330000,
-    image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=800&q=80',
-    description: 'Assorted traditional dim sum with dumplings, bao buns, and shumai.',
-    category: 'Asian',
-    restaurantId: 'restaurant_2',
-  },
+    id: "ak-005",
+    name: "Bánh Mì",
+    price: 39000,
+    category: "Món chính",
+    image: "https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=400&h=300&fit=crop",
+    restaurant: "Aloha",
+    available: true,
+    description: "Bánh mì Việt Nam với thịt nướng, rau tươi và pate, hương vị truyền thống",
+    ingredients: ["Bánh mì", "Thịt heo nướng", "Pate", "Rau thơm", "Dưa leo", "Cà rốt"],
+    preparationTime: 10
+  }
 ];
 
-export const getProductImage = (p: Product) => p.image || PLACEHOLDERS[p.category];
+// Helper function to get product image
+export const getProductImage = (product: Product): string => {
+  return product.image || '/images/default-dish.jpg';
+};
 
-// ===== add at the bottom of src/data/products.ts =====
-export const productNameMap: Record<string, string> = Object.fromEntries(
-  products.map(p => [p.id, p.name])
-);
-
-export const productPriceMap: Record<string, number> = Object.fromEntries(
-  products.map(p => [p.id, p.price])
-);
+export default products;

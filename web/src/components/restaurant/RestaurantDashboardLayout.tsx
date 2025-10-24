@@ -118,7 +118,7 @@ const RestaurantDashboardLayout: React.FC<RestaurantDashboardLayoutProps> = ({
 }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<string>('menu');
+  const [activeTab, setActiveTab] = useState<string>('orders');
 
   const handleLogout = () => {
     logout();
@@ -142,13 +142,6 @@ const RestaurantDashboardLayout: React.FC<RestaurantDashboardLayoutProps> = ({
       </DashboardHeader>
 
       <TabContainer>
-        <TabButton
-          $active={activeTab === 'menu'}
-          $primary={theme.primary}
-          onClick={() => setActiveTab('menu')}
-        >
-          🍽️ Thực đơn
-        </TabButton>
         <TabButton
           $active={activeTab === 'orders'}
           $primary={theme.primary}

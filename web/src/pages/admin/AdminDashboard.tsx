@@ -301,27 +301,108 @@ const AdminDashboard: React.FC = () => {
   const [emergencyTargetName, setEmergencyTargetName] = useState('');
   const [emergencyAction, setEmergencyAction] = useState('');
 
-  // State for data
-  const [restaurants, setRestaurants] = useState(getAllRestaurants());
-  const [customers, setCustomers] = useState(getAllCustomers());
-  const [drones, setDrones] = useState(getDroneFleet());
-  const [logs, setLogs] = useState(getSystemLogs());
-  const [stats, setStats] = useState(getAdminStats());
+  // State for data with safe initialization
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [drones, setDrones] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({
+    totalRestaurants: 0,
+    totalCustomers: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    totalDrones: 0,
+    activeRestaurants: 0,
+    activeDrones: 0,
+    pendingRestaurants: 0,
+    maintenanceDrones: 0
+  });
+
+  // Safe array validation helpers
+  const safeRestaurants = Array.isArray(restaurants) ? restaurants : [];
+  const safeCustomers = Array.isArray(customers) ? customers : [];
+  const safeDrones = Array.isArray(drones) ? drones : [];
+  const safeLogs = Array.isArray(logs) ? logs : [];
+  
+  console.log("[AdminDashboard] Safe data:", {
+    restaurants: safeRestaurants.length,
+    customers: safeCustomers.length,
+    drones: safeDrones.length,
+    logs: safeLogs.length
+  });
+
+  // Safe data loading with fallback
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        console.log("[AdminDashboard] Loading data...");
+        
+        // Load data with fallback
+        const restaurantsData = await getAllRestaurants();
+        const customersData = await getAllCustomers();
+        const dronesData = await getDroneFleet();
+        const logsData = await getSystemLogs();
+        const statsData = await getAdminStats();
+        
+        // Validate and set data
+        setRestaurants(Array.isArray(restaurantsData) ? restaurantsData : []);
+        setCustomers(Array.isArray(customersData) ? customersData : []);
+        setDrones(Array.isArray(dronesData) ? dronesData : []);
+        setLogs(Array.isArray(logsData) ? logsData : []);
+        setStats(statsData || {});
+        
+        console.log("[AdminDashboard] Data loaded successfully");
+      } catch (error) {
+        console.error("[AdminDashboard] Error loading data:", error);
+        
+        // Fallback to mock data
+        setRestaurants([
+          { id: '1', name: 'Aloha Kitchen', status: 'Active', category: 'Asian Fusion', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 0 },
+          { id: '2', name: 'SweetDreams Bakery', status: 'Active', category: 'Bakery', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 0 }
+        ]);
+        setCustomers([]);
+        setDrones([]);
+        setLogs([]);
+        setStats({
+          totalRestaurants: 2,
+          totalCustomers: 0,
+          totalOrders: 0,
+          totalRevenue: 0,
+          totalDrones: 0,
+          activeRestaurants: 2,
+          activeDrones: 0,
+          pendingRestaurants: 0,
+          maintenanceDrones: 0
+        });
+      }
+    };
+    
+    loadData();
+  }, []);
 
   // Refresh data
   const refreshData = () => {
-    setRestaurants(getAllRestaurants());
-    setCustomers(getAllCustomers());
-    setDrones(getDroneFleet());
-    setLogs(getSystemLogs());
-    setStats(getAdminStats());
-    setRefreshKey(prev => prev + 1);
+    try {
+      setRestaurants(getAllRestaurants());
+      setCustomers(getAllCustomers());
+      setDrones(getDroneFleet());
+      setLogs(getSystemLogs());
+      setStats(getAdminStats());
+      setRefreshKey(prev => prev + 1);
+    } catch (error) {
+      console.error("[AdminDashboard] Error refreshing data:", error);
+    }
   };
 
   // Auto-refresh logs every 10 seconds
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLogs(getSystemLogs());
+    const interval = setInterval(async () => {
+      try {
+        const logsData = await getSystemLogs();
+        setLogs(Array.isArray(logsData) ? logsData : []);
+      } catch (error) {
+        console.error("[AdminDashboard] Error refreshing logs:", error);
+      }
     }, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -393,8 +474,8 @@ const AdminDashboard: React.FC = () => {
         onTabChange={setActiveTab}
         adminName={admin.name}
         stats={{
-          pendingRestaurants: stats.pendingRestaurants,
-          maintenanceDrones: stats.maintenanceDrones
+          pendingRestaurants: stats?.pendingRestaurants || 0,
+          maintenanceDrones: stats?.maintenanceDrones || 0
         }}
       />
       
@@ -426,10 +507,10 @@ const AdminDashboard: React.FC = () => {
               >
                 <StatHeader>
                   <div>
-                    <StatValue>{stats.totalRestaurants}</StatValue>
+                    <StatValue>{stats?.totalRestaurants || 0}</StatValue>
                     <StatLabel>Tổng số nhà hàng</StatLabel>
-                    <StatChange $positive={stats.activeRestaurants > 0}>
-                      {stats.activeRestaurants} đang hoạt động
+                    <StatChange $positive={(stats?.activeRestaurants || 0) > 0}>
+                      {stats?.activeRestaurants || 0} đang hoạt động
                     </StatChange>
                   </div>
                   <StatIcon $bgColor="#eef2ff">🏪</StatIcon>
@@ -444,7 +525,7 @@ const AdminDashboard: React.FC = () => {
               >
                 <StatHeader>
                   <div>
-                    <StatValue>{stats.totalCustomers}</StatValue>
+                    <StatValue>{stats?.totalCustomers || 0}</StatValue>
                     <StatLabel>Tổng số khách hàng</StatLabel>
                     <StatChange $positive>
                       Cơ sở người dùng đang tăng
@@ -462,7 +543,7 @@ const AdminDashboard: React.FC = () => {
               >
                 <StatHeader>
                   <div>
-                    <StatValue>{stats.totalOrders.toLocaleString()}</StatValue>
+                    <StatValue>{stats?.totalOrders?.toLocaleString("vi-VN") || "0"}</StatValue>
                     <StatLabel>Tổng số đơn hàng</StatLabel>
                     <StatChange $positive>
                       Tất cả giao hàng
@@ -481,7 +562,7 @@ const AdminDashboard: React.FC = () => {
                 <StatHeader>
                   <div>
                     <StatValue style={{ fontSize: '24px' }}>
-                      {formatVND(stats.totalRevenue)}
+                      {formatVND(stats?.totalRevenue || 0)}
                     </StatValue>
                     <StatLabel>Tổng doanh thu</StatLabel>
                     <StatChange $positive>
@@ -500,10 +581,10 @@ const AdminDashboard: React.FC = () => {
               >
                 <StatHeader>
                   <div>
-                    <StatValue>{stats.totalDrones}</StatValue>
+                    <StatValue>{stats?.totalDrones || 0}</StatValue>
                     <StatLabel>Tổng số máy bay</StatLabel>
-                    <StatChange $positive={stats.activeDrones > 0}>
-                      {stats.activeDrones} đang giao hàng
+                    <StatChange $positive={(stats?.activeDrones || 0) > 0}>
+                      {stats?.activeDrones || 0} đang giao hàng
                     </StatChange>
                   </div>
                   <StatIcon $bgColor="#f0f0f0">🚁</StatIcon>
@@ -518,10 +599,10 @@ const AdminDashboard: React.FC = () => {
               >
                 <StatHeader>
                   <div>
-                    <StatValue>{stats.pendingRestaurants}</StatValue>
+                    <StatValue>{stats?.pendingRestaurants || 0}</StatValue>
                     <StatLabel>Chờ phê duyệt</StatLabel>
-                    <StatChange $positive={stats.pendingRestaurants === 0}>
-                      {stats.pendingRestaurants === 0 ? 'Đã xử lý hết' : 'Cần xem xét'}
+                    <StatChange $positive={(stats?.pendingRestaurants || 0) === 0}>
+                      {(stats?.pendingRestaurants || 0) === 0 ? 'Đã xử lý hết' : 'Cần xem xét'}
                     </StatChange>
                   </div>
                   <StatIcon $bgColor="#ffe7e7">⏳</StatIcon>
@@ -531,11 +612,29 @@ const AdminDashboard: React.FC = () => {
 
             <ContentArea>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '30px' }}>
-                <RestaurantTable 
-                  key={`restaurants-${refreshKey}`}
-                  restaurants={restaurants} 
-                  onUpdate={refreshData} 
-                />
+                {safeRestaurants.length > 0 ? (
+                  <RestaurantTable 
+                    key={`restaurants-${refreshKey}`}
+                    restaurants={safeRestaurants} 
+                    onUpdate={refreshData} 
+                  />
+                ) : (
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '60px 20px', 
+                    background: 'white', 
+                    borderRadius: '15px',
+                    boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '15px' }}>🏪</div>
+                    <div style={{ fontSize: '18px', color: '#666', marginBottom: '10px' }}>
+                      Không có dữ liệu nhà hàng để hiển thị
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#999' }}>
+                      Vui lòng thử lại sau hoặc liên hệ quản trị viên
+                    </div>
+                  </div>
+                )}
               </div>
             </ContentArea>
           </>
@@ -543,11 +642,29 @@ const AdminDashboard: React.FC = () => {
 
         {activeTab === 'restaurants' && (
           <ContentArea>
-            <RestaurantTable 
-              key={`restaurants-${refreshKey}`}
-              restaurants={restaurants} 
-              onUpdate={refreshData} 
-            />
+            {safeRestaurants.length > 0 ? (
+              <RestaurantTable 
+                key={`restaurants-${refreshKey}`}
+                restaurants={safeRestaurants} 
+                onUpdate={refreshData} 
+              />
+            ) : (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '60px 20px', 
+                background: 'white', 
+                borderRadius: '15px',
+                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)'
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '15px' }}>🏪</div>
+                <div style={{ fontSize: '18px', color: '#666', marginBottom: '10px' }}>
+                  Không có dữ liệu nhà hàng để hiển thị
+                </div>
+                <div style={{ fontSize: '14px', color: '#999' }}>
+                  Vui lòng thử lại sau hoặc liên hệ quản trị viên
+                </div>
+              </div>
+            )}
           </ContentArea>
         )}
 
@@ -555,7 +672,7 @@ const AdminDashboard: React.FC = () => {
           <ContentArea>
             <CustomerTable 
               key={`customers-${refreshKey}`}
-              customers={customers} 
+              customers={safeCustomers} 
               onUpdate={refreshData} 
             />
           </ContentArea>
@@ -565,7 +682,7 @@ const AdminDashboard: React.FC = () => {
           <ContentArea>
             <DroneMonitor 
               key={`drones-${refreshKey}`}
-              drones={drones} 
+              drones={safeDrones} 
               onUpdate={refreshData} 
             />
           </ContentArea>
@@ -575,7 +692,7 @@ const AdminDashboard: React.FC = () => {
           <ContentArea>
             <SystemLogs 
               key={`logs-${refreshKey}`}
-              logs={logs} 
+              logs={safeLogs} 
             />
           </ContentArea>
         )}

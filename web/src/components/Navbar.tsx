@@ -155,7 +155,10 @@ const Navbar: React.FC = () => {
           {open ? '✕' : '☰'}
         </Burger>
         <Links open={open}>
-          <A to="/menu" title="Xem thực đơn">Thực đơn</A>
+          {/* Hide Menu tab for restaurant users */}
+          {!(user && isRestaurant()) && (
+            <A to="/menu" title="Xem thực đơn">Thực đơn</A>
+          )}
           
           {/* Show cart and checkout only for customers */}
           {user && isCustomer() && (
@@ -165,10 +168,7 @@ const Navbar: React.FC = () => {
             </>
           )}
           
-          {/* Show orders for logged in users */}
-          {user && (
-            <A to="/orders" title="Theo dõi đơn hàng & Drone">Theo dõi đơn hàng</A>
-          )}
+          {/* Order tracking removed from main navigation */}
           
           {/* Role-based navigation */}
           {user && isAdmin() && (
@@ -177,9 +177,12 @@ const Navbar: React.FC = () => {
           
           {user && isRestaurant() && (
             <>
-              <A to="/restaurant" title="Bảng điều khiển nhà hàng">Nhà hàng</A>
+              {/* Removed generic "Nhà hàng" tab - restaurants now only see their specific tabs */}
               {user.restaurantId === 'rest_2' && (
                 <A to="/sweetdreams" title="SweetDreams Bakery">SweetDreams</A>
+              )}
+              {(user.restaurantId === 'restaurant_2' || user.username === 'aloha_restaurant') && (
+                <A to="/aloha-dashboard" title="Aloha Kitchen">Aloha</A>
               )}
             </>
           )}

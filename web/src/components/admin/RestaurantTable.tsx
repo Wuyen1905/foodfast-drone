@@ -262,9 +262,34 @@ const RestaurantTable: React.FC<RestaurantTableProps> = ({ restaurants, onUpdate
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Pending' | 'Inactive'>('All');
   const [modalData, setModalData] = useState<{ restaurant: AdminRestaurant; action: string } | null>(null);
 
-  const filteredRestaurants = restaurants.filter(restaurant => {
-    const matchesSearch = restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         restaurant.category.toLowerCase().includes(searchQuery.toLowerCase());
+  // Defensive data validation and logging
+  console.log("[RestaurantTable] Loaded data:", restaurants);
+  
+  // Safe array validation
+  const safeRestaurants = Array.isArray(restaurants) ? restaurants : [];
+  console.log("[RestaurantTable] Safe restaurants:", safeRestaurants);
+  
+  if (!Array.isArray(restaurants)) {
+    console.warn("Expected restaurants to be an array, got:", typeof restaurants);
+    return (
+      <Container>
+        <Header>
+          <Title>Quản lý nhà hàng</Title>
+        </Header>
+        <EmptyState>
+          <div style={{ fontSize: '48px', marginBottom: '15px' }}>⚠️</div>
+          <div>Không có dữ liệu nhà hàng để hiển thị</div>
+        </EmptyState>
+      </Container>
+    );
+  }
+
+  // Safe filtering with null checks
+  const filteredRestaurants = safeRestaurants.filter(restaurant => {
+    if (!restaurant || typeof restaurant !== 'object') return false;
+    
+    const matchesSearch = (restaurant.name?.toLowerCase() || '').includes((searchQuery?.toLowerCase() || '')) ||
+                         (restaurant.category?.toLowerCase() || '').includes((searchQuery?.toLowerCase() || ''));
     const matchesStatus = statusFilter === 'All' || restaurant.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -274,7 +299,7 @@ const RestaurantTable: React.FC<RestaurantTableProps> = ({ restaurants, onUpdate
   };
 
   const confirmAction = () => {
-    if (!modalData || !admin) return;
+    if (!modalData || !admin || !modalData.restaurant) return;
     
     const success = updateRestaurantStatus(
       modalData.restaurant.id,
@@ -306,25 +331,25 @@ const RestaurantTable: React.FC<RestaurantTableProps> = ({ restaurants, onUpdate
           $active={statusFilter === 'All'} 
           onClick={() => setStatusFilter('All')}
         >
-          Tất cả ({restaurants.length})
+          Tất cả ({safeRestaurants.length})
         </FilterButton>
         <FilterButton 
           $active={statusFilter === 'Active'} 
           onClick={() => setStatusFilter('Active')}
         >
-          🟢 Hoạt động ({restaurants.filter(r => r.status === 'Active').length})
+          🟢 Hoạt động ({safeRestaurants.filter(r => r?.status === 'Active').length})
         </FilterButton>
         <FilterButton 
           $active={statusFilter === 'Pending'} 
           onClick={() => setStatusFilter('Pending')}
         >
-          🟠 Chờ duyệt ({restaurants.filter(r => r.status === 'Pending').length})
+          🟠 Chờ duyệt ({safeRestaurants.filter(r => r?.status === 'Pending').length})
         </FilterButton>
         <FilterButton 
           $active={statusFilter === 'Inactive'} 
           onClick={() => setStatusFilter('Inactive')}
         >
-          🔴 Không hoạt động ({restaurants.filter(r => r.status === 'Inactive').length})
+          🔴 Không hoạt động ({safeRestaurants.filter(r => r?.status === 'Inactive').length})
         </FilterButton>
       </FilterGroup>
       
@@ -360,24 +385,24 @@ const RestaurantTable: React.FC<RestaurantTableProps> = ({ restaurants, onUpdate
                   transition={{ delay: index * 0.05 }}
                 >
                   <Td>
-                    <RestaurantName>{restaurant.name}</RestaurantName>
-                    <RestaurantCategory>{restaurant.category}</RestaurantCategory>
+                    <RestaurantName>{restaurant?.name || 'N/A'}</RestaurantName>
+                    <RestaurantCategory>{restaurant?.category || 'N/A'}</RestaurantCategory>
                   </Td>
                   <Td>
-                    <StatusBadge $status={restaurant.status}>
-                      {restaurant.status}
+                    <StatusBadge $status={restaurant?.status || 'Unknown'}>
+                      {restaurant?.status || 'Unknown'}
                     </StatusBadge>
                   </Td>
-                  <Td>{restaurant.totalOrders.toLocaleString()}</Td>
-                  <Td>{formatVND(restaurant.totalRevenue)}</Td>
+                  <Td>{restaurant?.totalOrders?.toLocaleString("vi-VN") || "0"}</Td>
+                  <Td>{formatVND(restaurant?.totalRevenue || 0)}</Td>
                   <Td>
                     <Rating>
-                      ⭐ {restaurant.rating.toFixed(1)}
+                      ⭐ {restaurant?.rating?.toFixed(1) || "0.0"}
                     </Rating>
                   </Td>
-                  <Td>{restaurant.droneCount} chiếc</Td>
+                  <Td>{restaurant?.droneCount || 0} chiếc</Td>
                   <Td>
-                    {restaurant.status === 'Pending' && (
+                    {restaurant?.status === 'Pending' && (
                       <ActionButton
                         $variant="approve"
                         onClick={() => handleStatusChange(restaurant, 'Active')}
@@ -385,7 +410,7 @@ const RestaurantTable: React.FC<RestaurantTableProps> = ({ restaurants, onUpdate
                         Phê duyệt
                       </ActionButton>
                     )}
-                    {restaurant.status === 'Active' && (
+                    {restaurant?.status === 'Active' && (
                       <ActionButton
                         $variant="suspend"
                         onClick={() => handleStatusChange(restaurant, 'Inactive')}
@@ -393,7 +418,7 @@ const RestaurantTable: React.FC<RestaurantTableProps> = ({ restaurants, onUpdate
                         Tạm ngưng
                       </ActionButton>
                     )}
-                    {restaurant.status === 'Inactive' && (
+                    {restaurant?.status === 'Inactive' && (
                       <ActionButton
                         $variant="approve"
                         onClick={() => handleStatusChange(restaurant, 'Active')}
@@ -425,9 +450,9 @@ const RestaurantTable: React.FC<RestaurantTableProps> = ({ restaurants, onUpdate
             >
               <ModalTitle>Xác nhận hành động</ModalTitle>
               <ModalText>
-                Bạn có chắc chắn muốn thay đổi trạng thái của <strong>{modalData.restaurant.name}</strong> sang{' '}
-                <strong>{modalData.action === 'Active' ? 'Hoạt động' : modalData.action === 'Inactive' ? 'Không hoạt động' : 'Chờ duyệt'}</strong>?
-                {modalData.action === 'Inactive' && (
+                Bạn có chắc chắn muốn thay đổi trạng thái của <strong>{modalData?.restaurant?.name || 'N/A'}</strong> sang{' '}
+                <strong>{modalData?.action === 'Active' ? 'Hoạt động' : modalData?.action === 'Inactive' ? 'Không hoạt động' : 'Chờ duyệt'}</strong>?
+                {modalData?.action === 'Inactive' && (
                   <span style={{ display: 'block', marginTop: '10px', color: '#dc3545' }}>
                     ⚠️ Hành động này sẽ tạm thời vô hiệu hóa tất cả dịch vụ của nhà hàng này.
                   </span>

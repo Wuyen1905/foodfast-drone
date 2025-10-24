@@ -72,13 +72,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     await new Promise((r) => setTimeout(r, 400));
     
-    // Find matching credentials
+    // Find matching credentials (excluding admin)
     const credential = Object.values(CREDENTIALS).find(cred => 
-      cred.username === username && cred.password === password
+      cred.username === username && cred.password === password && cred.username !== 'admin'
     );
     
     if (credential) {
-      const user = USERS.find(u => u.username === username);
+      const user = USERS.find(u => u.username === username && u.role !== 'admin');
       if (user) {
         console.log("✅ [AuthContext] User found:", { 
           username: user.username, 
@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     console.log("❌ [AuthContext] Login failed - invalid credentials");
     setLoading(false);
-    return { ok: false, message: "Tên đăng nhập hoặc mật khẩu không đúng." };
+    return { ok: false, message: "Sai tên đăng nhập hoặc mật khẩu" };
   };
 
   const logout = () => setUser(null);

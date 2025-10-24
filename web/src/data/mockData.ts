@@ -54,14 +54,6 @@ export const RESTAURANTS: Restaurant[] = [
 
 export const USERS: User[] = [
   {
-    id: 'u1',
-    name: 'Admin User',
-    username: 'admin',
-    role: 'admin',
-    email: 'admin@foodfast.com',
-    createdAt: Date.now() - 86400000 * 365
-  },
-  {
     id: 'u2',
     name: 'Customer User',
     username: 'user',
@@ -104,7 +96,6 @@ export const USERS: User[] = [
 ];
 
 export const CREDENTIALS = {
-  admin: { username: 'admin', password: 'admin123' },
   user: { username: 'user', password: 'user123' },
   sweetdreams: { username: 'sweetdreams', password: 'sweet123' },
   user1: { username: 'user1', password: 'user1123' },

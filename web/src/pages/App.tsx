@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { MenuProvider } from '@/context/MenuContext';
 import Menu from './Menu';
 import Details from './Details';
 import Cart from './Cart';
@@ -13,6 +14,7 @@ import Login from './Login';
 import RestaurantDashboard from './restaurant/RestaurantDashboard';
 import SweetDreamsDashboard from './restaurant/SweetDreamsDashboard';
 import AlohaKitchenDashboard from './restaurant/AlohaKitchenDashboard';
+import AlohaDashboard from './restaurant/AlohaDashboard';
 import AdminControlPanel from './admin/AdminControlPanel';
 import ThemeToggle from '../components/ThemeToggle';
 import ResponsiveLayout from '../components/ResponsiveLayout';
@@ -48,10 +50,11 @@ const RoleGuardedRoute: React.FC<{ children: React.ReactNode; allowedRoles: stri
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <ResponsiveLayout>
-        <Navbar />
-        <ThemeToggle />
+    <MenuProvider>
+      <BrowserRouter>
+        <ResponsiveLayout>
+          <Navbar />
+          <ThemeToggle />
         <Routes>
             <Route path="/" element={<Navigate to="/menu" replace />} />
             <Route path="/home" element={<Navigate to="/menu" replace />} />
@@ -75,8 +78,7 @@ const App: React.FC = () => {
             } />
             <Route path="/vnpay-return" element={<VNPayReturn />} />
             
-            {/* Protected routes for all logged in users */}
-            <Route path="/orders" element={<OrderTracking />} />
+            {/* Order tracking route removed from main navigation */}
             
             {/* Restaurant-only routes */}
             <Route path="/restaurant" element={
@@ -92,6 +94,11 @@ const App: React.FC = () => {
             <Route path="/aloha" element={
               <ProtectedRoute requireRole="restaurant">
                 <AlohaKitchenDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/aloha-dashboard" element={
+              <ProtectedRoute requireRole="restaurant">
+                <AlohaDashboard />
               </ProtectedRoute>
             } />
             
@@ -139,7 +146,8 @@ const App: React.FC = () => {
           </Routes>
           <Footer />
         </ResponsiveLayout>
-    </BrowserRouter>
+      </BrowserRouter>
+    </MenuProvider>
   );
 };
 

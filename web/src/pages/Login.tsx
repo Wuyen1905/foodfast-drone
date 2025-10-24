@@ -194,18 +194,14 @@ const Login: React.FC = () => {
       // Aloha Kitchen
       if (loggedInUser.restaurantId === 'restaurant_2' || loggedInUser.username === 'aloha_restaurant') {
         console.log("🍜 [Login] Redirecting to Aloha dashboard");
-        return '/restaurant/aloha';
+        return '/aloha-dashboard';
       }
       // Generic restaurant dashboard
       console.log("🏪 [Login] Redirecting to generic restaurant dashboard");
       return '/restaurant';
     }
 
-    // Admin redirect
-    if (loggedInUser.role === 'admin') {
-      console.log("👨‍💼 [Login] Redirecting to admin dashboard");
-      return '/admin';
-    }
+    // Note: Admin login is handled separately at /admin/login
 
     // Customer - redirect to previous page or home
     const customerPath = from === '/login' ? '/' : from;
@@ -342,7 +338,6 @@ const Login: React.FC = () => {
         <CredentialsBox>
           <CredentialsTitle>📋 Tài khoản mẫu:</CredentialsTitle>
           <CredentialsList>
-            <div><strong>Admin:</strong> admin / admin123</div>
             <div><strong>Customer:</strong> user / user123</div>
             <div><strong>Customer:</strong> user1 / user1123</div>
             <div><strong>Restaurant (SweetDreams):</strong> sweetdreams / sweet123</div>

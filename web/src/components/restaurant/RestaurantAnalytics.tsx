@@ -8,6 +8,7 @@ interface AnalyticsProps {
     primary?: string;
     secondary?: string;
   };
+  restaurant?: "SweetDreams" | "Aloha";
 }
 
 const AnalyticsContainer = styled.div`
@@ -281,7 +282,7 @@ const ProductRevenue = styled.div`
   color: #FF6600;
 `;
 
-const RestaurantAnalytics: React.FC<AnalyticsProps> = ({ theme }) => {
+const RestaurantAnalytics: React.FC<AnalyticsProps> = ({ theme, restaurant = "SweetDreams" }) => {
   // Mock data
   const kpiData = [
     {
@@ -344,10 +345,14 @@ const RestaurantAnalytics: React.FC<AnalyticsProps> = ({ theme }) => {
   const totalOrders = orderStatusData.reduce((sum, item) => sum + item.value, 0);
   let currentAngle = 0;
 
-  const topProducts = [
-    { name: 'Cheesecake Bliss', sales: 89, revenue: 5695000 },
-    { name: 'Dim Sum', sales: 67, revenue: 4020000 },
-    { name: 'Pizza Sky', sales: 54, revenue: 3510000 }
+  const topProducts = restaurant === "SweetDreams" ? [
+    { name: 'Bánh Tiramisu', sales: 89, revenue: 4895000 },
+    { name: 'Bánh Donut', sales: 67, revenue: 1675000 },
+    { name: 'Bánh Phô Mai Dâu', sales: 54, revenue: 2430000 }
+  ] : [
+    { name: 'Pizza Hawaii', sales: 95, revenue: 8455000 },
+    { name: 'Hamburger', sales: 78, revenue: 6162000 },
+    { name: 'Cơm Chiên Hawaii', sales: 62, revenue: 4278000 }
   ];
 
   const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32'];

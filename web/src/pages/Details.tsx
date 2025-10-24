@@ -4,8 +4,10 @@ import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { products, getProductImage } from '../data/products';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import { formatVND } from '../utils/currency';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 const Page = styled.div`
   padding: var(--spacing-xl) var(--spacing-lg);
@@ -94,6 +96,7 @@ const Details: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { add } = useCart();
+  const { user } = useAuth();
   const product = products.find(p => p.id === id);
   const [qty, setQty] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -106,11 +109,49 @@ const Details: React.FC = () => {
   if (!product) return <Page>Sản phẩm không tìm thấy.</Page>;
 
   const addToCart = () => { 
+    // Check if user is logged in
+    if (!user) {
+      Swal.fire({
+        title: "Hãy đăng nhập để tiếp tục mua hàng!",
+        text: "Bạn cần đăng nhập để thêm món vào giỏ hàng và theo dõi đơn hàng của mình.",
+        icon: "warning",
+        confirmButtonText: "Đăng nhập ngay",
+        cancelButtonText: "Hủy",
+        showCancelButton: true,
+        confirmButtonColor: "#007bff",
+        cancelButtonColor: "#6c757d"
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate("/login");
+        }
+      });
+      return;
+    }
+
     add(product.id, qty, { name: product.name, image: getProductImage(product), price: product.price }); 
     toast.success('🛒 Đã thêm vào giỏ hàng thành công!'); 
   };
   
   const buyNow = () => { 
+    // Check if user is logged in
+    if (!user) {
+      Swal.fire({
+        title: "Hãy đăng nhập để tiếp tục mua hàng!",
+        text: "Bạn cần đăng nhập để mua hàng và theo dõi đơn hàng của mình.",
+        icon: "warning",
+        confirmButtonText: "Đăng nhập ngay",
+        cancelButtonText: "Hủy",
+        showCancelButton: true,
+        confirmButtonColor: "#007bff",
+        cancelButtonColor: "#6c757d"
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate("/login");
+        }
+      });
+      return;
+    }
+
     add(product.id, qty, { name: product.name, image: getProductImage(product), price: product.price }); 
     navigate('/checkout'); 
   };

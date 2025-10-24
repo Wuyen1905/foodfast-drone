@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import RestaurantDashboardLayout from '@/components/restaurant/RestaurantDashboardLayout';
-import MenuManagement from '@/components/restaurant/MenuManagement';
 import OrderTracking from '@/components/restaurant/OrderTracking';
 import { useAuth } from '@/context';
 
@@ -34,12 +33,6 @@ const AlohaKitchenDashboard: React.FC = () => {
     >
       {(activeTab) => (
         <>
-          {activeTab === 'menu' && (
-            <MenuManagement
-              restaurantId={RESTAURANT_ID}
-              theme={ALOHA_THEME}
-            />
-          )}
           {activeTab === 'orders' && (
             <OrderTracking
               restaurantId={RESTAURANT_ID}

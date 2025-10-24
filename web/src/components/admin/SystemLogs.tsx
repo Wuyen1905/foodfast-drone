@@ -253,28 +253,79 @@ const formatTimestamp = (timestamp: number): { date: string; time: string; relat
   };
 };
 
+const formatLogDetails = (details: any): string => {
+  if (!details) return '';
+  
+  // If details is already a string, return it
+  if (typeof details === 'string') return details;
+  
+  // If details is an object, format it as key-value pairs
+  if (typeof details === 'object' && details !== null) {
+    return Object.entries(details)
+      .map(([key, value]) => {
+        // Handle special cases for better readability
+        if (key === 'orderId' && value) return `Đơn hàng: ${value}`;
+        if (key === 'droneId' && value) return `Máy bay: ${value}`;
+        if (key === 'battery' && value) return `Pin: ${value}%`;
+        if (key === 'deliveryTime' && value) return `Thời gian giao: ${value}`;
+        if (key === 'amount' && value) return `Số tiền: ${value.toLocaleString('vi-VN')}₫`;
+        if (key === 'timeout' && value) return `Timeout: ${value}s`;
+        if (key === 'duration' && value) return `Thời gian: ${value}`;
+        if (key === 'components' && Array.isArray(value)) return `Thành phần: ${value.join(', ')}`;
+        
+        // Default formatting
+        return `${key}: ${value}`;
+      })
+      .join(' | ');
+  }
+  
+  // Fallback for other types
+  return String(details);
+};
+
 const SystemLogs: React.FC<SystemLogsProps> = ({ logs }) => {
   const [severityFilter, setSeverityFilter] = useState<'All' | 'info' | 'warning' | 'critical'>('All');
   const [targetFilter, setTargetFilter] = useState<'All' | 'restaurant' | 'customer' | 'drone' | 'order'>('All');
 
-  const filteredLogs = logs.filter(log => {
+  // Safe array validation
+  const safeLogs = Array.isArray(logs) ? logs : [];
+  console.log("[SystemLogs] Safe logs:", safeLogs);
+
+  const filteredLogs = safeLogs.filter(log => {
+    if (!log || typeof log !== 'object') return false;
     const matchesSeverity = severityFilter === 'All' || log.severity === severityFilter;
     const matchesTarget = targetFilter === 'All' || log.targetType === targetFilter;
     return matchesSeverity && matchesTarget;
   });
 
   const severityCounts = {
-    info: logs.filter(l => l.severity === 'info').length,
-    warning: logs.filter(l => l.severity === 'warning').length,
-    critical: logs.filter(l => l.severity === 'critical').length
+    info: safeLogs.filter(l => l?.severity === 'info').length,
+    warning: safeLogs.filter(l => l?.severity === 'warning').length,
+    critical: safeLogs.filter(l => l?.severity === 'critical').length
   };
 
   const targetCounts = {
-    restaurant: logs.filter(l => l.targetType === 'restaurant').length,
-    customer: logs.filter(l => l.targetType === 'customer').length,
-    drone: logs.filter(l => l.targetType === 'drone').length,
-    order: logs.filter(l => l.targetType === 'order').length
+    restaurant: safeLogs.filter(l => l?.targetType === 'restaurant').length,
+    customer: safeLogs.filter(l => l?.targetType === 'customer').length,
+    drone: safeLogs.filter(l => l?.targetType === 'drone').length,
+    order: safeLogs.filter(l => l?.targetType === 'order').length
   };
+
+  // Early return for invalid data
+  if (!Array.isArray(logs)) {
+    console.warn("[SystemLogs] Expected logs to be an array, got:", typeof logs);
+    return (
+      <Container>
+        <Header>
+          <Title>Nhật ký hoạt động hệ thống</Title>
+        </Header>
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#999' }}>
+          <div style={{ fontSize: '48px', marginBottom: '15px' }}>⚠️</div>
+          <div>Không có dữ liệu nhật ký để hiển thị</div>
+        </div>
+      </Container>
+    );
+  }
 
   return (
     <Container>
@@ -291,7 +342,7 @@ const SystemLogs: React.FC<SystemLogsProps> = ({ logs }) => {
             $active={severityFilter === 'All'} 
             onClick={() => setSeverityFilter('All')}
           >
-            Tất cả ({logs.length})
+            Tất cả ({safeLogs.length})
           </FilterButton>
           <FilterButton 
             $active={severityFilter === 'info'} 
@@ -392,7 +443,7 @@ const SystemLogs: React.FC<SystemLogsProps> = ({ logs }) => {
                   </div>
                 </LogHeader>
                 
-                <LogDetails>{log.details}</LogDetails>
+                <LogDetails>{formatLogDetails(log.details)}</LogDetails>
                 
                 <LogMeta>
                   <MetaItem>

@@ -1,13 +1,15 @@
 import React from 'react';
 import styled from 'styled-components';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Product, getProductImage } from '../data/products';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { useAuth } from '@/context/AuthContext';
 import { formatVND } from '../utils/currency';
 import toast from 'react-hot-toast';
 import { useRoleGuard } from '@/hooks/useRoleGuard';
+import Swal from 'sweetalert2';
 
 const Card = styled(motion.div)<{ isAdmin?: boolean }>`
   background: var(--card);
@@ -180,10 +182,31 @@ type Props = {
 const ProductCard: React.FC<Props> = ({ product, isAdmin, onEdit, onDelete, onAddToCart }) => {
   const { add } = useCart();
   const { toggle, has } = useWishlist();
+  const { user } = useAuth();
   const { canAddToCart, isRestaurant } = useRoleGuard();
+  const navigate = useNavigate();
   const img = getProductImage(product);
 
   const onAddCart = () => {
+    // Check if user is logged in
+    if (!user) {
+      Swal.fire({
+        title: "Hãy đăng nhập để tiếp tục mua hàng!",
+        text: "Bạn cần đăng nhập để thêm món vào giỏ hàng và theo dõi đơn hàng của mình.",
+        icon: "warning",
+        confirmButtonText: "Đăng nhập ngay",
+        cancelButtonText: "Hủy",
+        showCancelButton: true,
+        confirmButtonColor: "#007bff",
+        cancelButtonColor: "#6c757d"
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate("/login");
+        }
+      });
+      return;
+    }
+
     // Prevent restaurants from adding to cart
     if (!canAddToCart()) {
       toast.error('🚫 Tài khoản nhà hàng không thể thêm món vào giỏ hàng');
@@ -199,6 +222,25 @@ const ProductCard: React.FC<Props> = ({ product, isAdmin, onEdit, onDelete, onAd
   };
   
   const onWishlist = () => {
+    // Check if user is logged in
+    if (!user) {
+      Swal.fire({
+        title: "Hãy đăng nhập để sử dụng danh sách yêu thích!",
+        text: "Bạn cần đăng nhập để thêm món vào danh sách yêu thích của mình.",
+        icon: "info",
+        confirmButtonText: "Đăng nhập ngay",
+        cancelButtonText: "Hủy",
+        showCancelButton: true,
+        confirmButtonColor: "#007bff",
+        cancelButtonColor: "#6c757d"
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate("/login");
+        }
+      });
+      return;
+    }
+
     // Prevent restaurants from using wishlist
     if (!canAddToCart()) {
       toast.error('🚫 Tài khoản nhà hàng không thể sử dụng danh sách yêu thích');

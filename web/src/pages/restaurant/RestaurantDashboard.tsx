@@ -320,7 +320,6 @@ const RestaurantDashboard: React.FC = () => {
   const tabs = [
     { id: 'overview' as TabType, icon: '📊', label: 'Tổng quan' },
     { id: 'drones' as TabType, icon: '🚁', label: 'Mô phỏng Drone' },
-    { id: 'menu' as TabType, icon: '🍽️', label: 'Quản lý Menu' },
     { id: 'orders' as TabType, icon: '📦', label: 'Đơn hàng' },
   ];
 
@@ -346,8 +345,9 @@ const RestaurantDashboard: React.FC = () => {
             <DroneTrackerMap theme={restaurantTheme} />
           </div>
         );
-      case 'menu':
-        return <MyMenu restaurantId={user?.id} theme={restaurantTheme} />;
+      // Menu tab removed for restaurants
+      // case 'menu':
+      //   return <MyMenu restaurantId={user?.id} theme={restaurantTheme} />;
       case 'orders':
         return <ActiveOrders restaurantId={user?.id} theme={restaurantTheme} />;
       default:
