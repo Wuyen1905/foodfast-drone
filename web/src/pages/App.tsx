@@ -11,6 +11,7 @@ import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
 import OrderTracking from './OrderTracking';
 import Login from './Login';
+import RegisterPage from './RegisterPage';
 import RestaurantDashboard from './restaurant/RestaurantDashboard';
 import SweetDreamsDashboard from './restaurant/SweetDreamsDashboard';
 import AlohaKitchenDashboard from './restaurant/AlohaKitchenDashboard';
@@ -63,6 +64,7 @@ const App: React.FC = () => {
             <Route path="/menu/:id" element={<Details />} />
             <Route path="/details/:id" element={<Details />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<RegisterPage />} />
             <Route path="/customer-info" element={<CustomerInfoForm />} />
             
             {/* Protected routes for customers only */}
@@ -86,6 +88,14 @@ const App: React.FC = () => {
                 <RestaurantDashboard />
               </ProtectedRoute>
             } />
+            <Route path="/restaurant/sweetdreams" element={
+              <ProtectedRoute requireRole="restaurant">
+                {(() => {
+                  console.log("🍰 [App] Rendering SweetDreamsDashboard route");
+                  return <SweetDreamsDashboard />;
+                })()}
+              </ProtectedRoute>
+            } />
             <Route path="/sweetdreams" element={
               <ProtectedRoute requireRole="restaurant">
                 <SweetDreamsDashboard />
@@ -98,7 +108,10 @@ const App: React.FC = () => {
             } />
             <Route path="/aloha-dashboard" element={
               <ProtectedRoute requireRole="restaurant">
-                <AlohaDashboard />
+                {(() => {
+                  console.log("🌺 [App] Rendering AlohaDashboard route");
+                  return <AlohaDashboard />;
+                })()}
               </ProtectedRoute>
             } />
             

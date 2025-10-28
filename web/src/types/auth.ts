@@ -57,10 +57,19 @@ export interface AdminAuthContextValue {
   logout: () => void;
 }
 
+export interface RegisterPayload {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  address?: string;
+}
+
 export interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<{ ok: boolean; message?: string }>;
+  register: (payload: RegisterPayload) => Promise<{ ok: boolean; message?: string }>;
   logout: () => void;
   isAdmin: () => boolean;
   isRestaurant: () => boolean;

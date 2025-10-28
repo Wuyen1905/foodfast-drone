@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context";
+import { USERS } from "@/data/mockData";
 import styled from "styled-components";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
@@ -159,7 +160,7 @@ const BackToHome = styled(motion.div)`
   }
 `;
 
-const Login: React.FC = () => {
+const Login = () => {
   const { login, user } = useAuth();
   const navigate = useNavigate();
   const location: any = useLocation();
@@ -169,7 +170,6 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [loginSuccess, setLoginSuccess] = useState(false);
 
   // Get redirect path based on user role and restaurant (memoized to prevent infinite loops)
   const getRedirectPath = useCallback((loggedInUser: any): string => {
@@ -209,37 +209,20 @@ const Login: React.FC = () => {
     return customerPath;
   }, [from]);
 
-  // Auto-redirect when user is authenticated after login
+  // Fallback useEffect: Check if user is already logged in and redirect them
   useEffect(() => {
-    console.log("🔄 [Login useEffect] Triggered with:", { 
-      loginSuccess, 
+    console.log("🔄 [Login] Checking if user is already logged in:", { 
       hasUser: !!user,
       username: user?.username,
       role: user?.role 
     });
     
-    if (loginSuccess && user) {
+    if (user) {
       const redirectPath = getRedirectPath(user);
-      console.log("✅ [Login] Auto-redirecting authenticated user to:", redirectPath);
-      console.log("👤 [Login] Full user data:", user);
-      
-      // Small delay to ensure state is fully updated
-      const timer = setTimeout(() => {
-        console.log("🚀 [Login] Executing navigate() to:", redirectPath);
-        navigate(redirectPath, { replace: true });
-        console.log("✅ [Login] navigate() called successfully");
-      }, 100);
-
-      return () => {
-        console.log("🧹 [Login] Cleaning up navigation timer");
-        clearTimeout(timer);
-      };
-    } else {
-      if (loginSuccess && !user) {
-        console.warn("⚠️ [Login] loginSuccess is true but user is null!");
-      }
+      console.log("✅ [Login] User already logged in, redirecting to:", redirectPath);
+      navigate(redirectPath, { replace: true });
     }
-  }, [user, loginSuccess, navigate, getRedirectPath]);
+  }, [user, navigate, getRedirectPath]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -247,7 +230,6 @@ const Login: React.FC = () => {
     
     setBusy(true);
     setError(null);
-    setLoginSuccess(false);
     
     try {
       console.log("📞 [Login] Calling login() function...");
@@ -258,10 +240,29 @@ const Login: React.FC = () => {
         console.log("✅ [Login] Login succeeded, showing success toast");
         toast.success("🎉 Đăng nhập thành công!");
         
-        console.log("🎯 [Login] Setting loginSuccess flag to true");
-        // Set login success flag to trigger useEffect navigation
-        setLoginSuccess(true);
-        console.log("✅ [Login] loginSuccess flag set, useEffect should trigger soon");
+        // Find the logged-in user directly from USERS data
+        const loggedInUser = USERS.find(u => u.username === username.trim() && u.role !== 'admin');
+        console.log("👤 [Login] Found logged-in user:", loggedInUser);
+        console.log("🔍 [Login] User details:", {
+          username: loggedInUser?.username,
+          role: loggedInUser?.role,
+          restaurantId: loggedInUser?.restaurantId,
+          name: loggedInUser?.name
+        });
+        
+        if (loggedInUser) {
+          // Calculate redirect path using the helper function
+          const redirectPath = getRedirectPath(loggedInUser);
+          console.log("🚀 [Login] Redirecting to:", redirectPath);
+          
+          // Immediate redirect after successful login
+          navigate(redirectPath, { replace: true });
+          console.log("✅ [Login] Navigation completed");
+        } else {
+          console.warn("⚠️ [Login] Could not find user data for:", username);
+          // Fallback to home page
+          navigate('/', { replace: true });
+        }
       } else {
         console.log("❌ [Login] Login failed:", res.message);
         setError(res.message || "Đăng nhập thất bại");
@@ -344,6 +345,10 @@ const Login: React.FC = () => {
             <div><strong>Restaurant (Aloha):</strong> aloha_restaurant / aloha123</div>
           </CredentialsList>
         </CredentialsBox>
+
+        <div style={{ textAlign: 'center', marginTop: '24px', color: '#666', fontSize: '14px' }}>
+          Chưa có tài khoản? <a href="/register" style={{ color: '#FF6600', textDecoration: 'none', fontWeight: '500' }}>Đăng ký tại đây</a>
+        </div>
 
         <BackToHome>
           <a href="/">← Quay về trang chủ</a>

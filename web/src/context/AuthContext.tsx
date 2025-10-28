@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { User, UserRole, AuthContextValue } from "../types/auth";
+import { User, UserRole, AuthContextValue, RegisterPayload } from "../types/auth";
 import { USERS, CREDENTIALS } from "../data/mockData";
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -10,36 +10,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Initialize user from localStorage on mount
   useEffect(() => {
+    console.log("🔄 [AuthContext] Initializing authentication state...");
     try {
       const saved = localStorage.getItem("auth_user");
       const token = localStorage.getItem("token");
       const role = localStorage.getItem("role");
       
+      console.log("📦 [AuthContext] Found localStorage data:", {
+        hasUser: !!saved,
+        hasToken: !!token,
+        hasRole: !!role,
+        role: role,
+        userData: saved ? JSON.parse(saved) : null
+      });
+      
       if (saved && token && role) {
         const parsedUser = JSON.parse(saved);
         // Verify that saved data is consistent
         if (parsedUser.role === role) {
+          console.log("✅ [AuthContext] Restoring user from localStorage:", {
+            username: parsedUser.username,
+            role: parsedUser.role,
+            restaurantId: parsedUser.restaurantId
+          });
           setUser(parsedUser);
         } else {
           // Clear inconsistent data
-          console.warn("Inconsistent auth data, clearing...");
+          console.warn("⚠️ [AuthContext] Inconsistent auth data, clearing...");
           localStorage.removeItem("auth_user");
           localStorage.removeItem("token");
           localStorage.removeItem("role");
         }
       } else if (saved || token || role) {
         // Partial data found, clear all to avoid inconsistency
-        console.warn("Partial auth data found, clearing...");
+        console.warn("⚠️ [AuthContext] Partial auth data found, clearing...");
         localStorage.removeItem("auth_user");
         localStorage.removeItem("token");
         localStorage.removeItem("role");
+      } else {
+        console.log("ℹ️ [AuthContext] No saved authentication data found");
       }
     } catch (error) {
-      console.error("Error parsing saved user:", error);
+      console.error("💥 [AuthContext] Error parsing saved user:", error);
       localStorage.removeItem("auth_user");
       localStorage.removeItem("token");
       localStorage.removeItem("role");
     } finally {
+      console.log("✅ [AuthContext] Authentication initialization complete");
       setLoading(false);
     }
   }, []);
@@ -86,16 +103,98 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           restaurantId: user.restaurantId,
           name: user.name 
         });
+        
+        // Generate token and save to localStorage immediately
+        const token = `token_${user.username}_${Date.now()}`;
+        localStorage.setItem("token", token);
+        localStorage.setItem("auth_user", JSON.stringify(user));
+        localStorage.setItem("role", user.role);
+        
+        console.log("💾 [AuthContext] Authentication data saved to localStorage:", {
+          token: token.substring(0, 20) + "...",
+          role: user.role,
+          restaurantId: user.restaurantId
+        });
+        
         setUser(user);
         setLoading(false);
         console.log("✅ [AuthContext] Login successful, user state updated");
-        return { ok: true };
+        return { ok: true, user, token };
       }
     }
     
     console.log("❌ [AuthContext] Login failed - invalid credentials");
     setLoading(false);
     return { ok: false, message: "Sai tên đăng nhập hoặc mật khẩu" };
+  };
+
+  const register = async (payload: RegisterPayload) => {
+    console.log("📝 [AuthContext] Registration attempt:", { 
+      email: payload.email,
+      fullName: payload.fullName,
+      phone: payload.phone 
+    });
+    setLoading(true);
+    
+    try {
+      // Simulate API call delay
+      await new Promise((r) => setTimeout(r, 800));
+      
+      // Validate payload
+      if (!payload.email || !payload.fullName || !payload.phone || !payload.password) {
+        console.log("❌ [AuthContext] Registration failed - missing required fields");
+        setLoading(false);
+        return { ok: false, message: "Vui lòng điền đầy đủ thông tin" };
+      }
+
+      // Check if email already exists
+      const existingUser = USERS.find(u => u.email === payload.email);
+      if (existingUser) {
+        console.log("❌ [AuthContext] Registration failed - email already exists");
+        setLoading(false);
+        return { ok: false, message: "Email đã được sử dụng" };
+      }
+
+      // Check if phone already exists
+      const existingPhone = USERS.find(u => u.phone === payload.phone);
+      if (existingPhone) {
+        console.log("❌ [AuthContext] Registration failed - phone already exists");
+        setLoading(false);
+        return { ok: false, message: "Số điện thoại đã được sử dụng" };
+      }
+
+      // Generate new user ID
+      const newUserId = `CUS-${Date.now()}`;
+      const newUsername = payload.email.split('@')[0].toLowerCase();
+      
+      // Create new user object
+      const newUser: User = {
+        id: newUserId,
+        name: payload.fullName,
+        username: newUsername,
+        email: payload.email,
+        phone: payload.phone,
+        role: 'customer',
+        orderCount: 0,
+        createdAt: Date.now()
+      };
+
+      // In a real app, this would be sent to the backend
+      // For now, we'll just simulate success
+      console.log("✅ [AuthContext] Registration successful:", { 
+        id: newUser.id, 
+        name: newUser.name, 
+        email: newUser.email,
+        phone: newUser.phone
+      });
+      
+      setLoading(false);
+      return { ok: true, data: newUser };
+    } catch (error) {
+      console.error("💥 [AuthContext] Registration error:", error);
+      setLoading(false);
+      return { ok: false, message: "Có lỗi xảy ra, vui lòng thử lại" };
+    }
   };
 
   const logout = () => setUser(null);
@@ -105,7 +204,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const setPhone = (phone: string) => user && setUser({ ...user, phone });
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isRestaurant, isCustomer, setPhone }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, isAdmin, isRestaurant, isCustomer, setPhone }}>
       {loading ? (
         <div style={{ 
           display: 'flex', 
@@ -133,6 +232,7 @@ export const useAuth = () => {
       user: null,
       loading: false,
       login: async () => ({ ok: false, message: "Auth not initialized" }),
+      register: async () => ({ ok: false, message: "Auth not initialized" }),
       logout: () => {},
       isAdmin: () => false,
       isRestaurant: () => false,

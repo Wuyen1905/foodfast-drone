@@ -274,67 +274,148 @@ const SweetDreamsDashboard: React.FC = () => {
   // Loading state while user is being authenticated
   if (authLoading) {
     return (
-      <div style={{ textAlign: "center", padding: "30px" }}>Đang tải dữ liệu người dùng...</div>
-    );
-  }
-
-  // Check if user is authenticated with all required data
-  if (!user || !token || !role) {
-    return (
       <div style={{ 
-        textAlign: "center", 
-        padding: "30px", 
-        color: "red",
-        fontSize: "16px",
-        fontWeight: "500"
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        fontSize: '18px',
+        color: '#666',
+        background: 'linear-gradient(135deg, #FFF0F5 0%, #FFF8FB 100%)'
       }}>
-        Không thể xác thực tài khoản nhà hàng. Vui lòng đăng nhập lại.
-        <div style={{ marginTop: "20px" }}>
-          <a 
-            href="/login" 
-            style={{ 
-              color: "#E91E63", 
-              textDecoration: "none",
-              padding: "10px 20px",
-              border: "2px solid #E91E63",
-              borderRadius: "8px",
-              display: "inline-block",
-              fontWeight: "600"
-            }}
-          >
-            Đăng nhập lại
-          </a>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🧁</div>
+          <div>Đang tải dữ liệu người dùng...</div>
         </div>
       </div>
     );
   }
 
-  // Verify role consistency
-  if (user.role !== role) {
-    console.error("Role mismatch in SweetDreamsDashboard");
-    localStorage.clear();
+  // Check if user is authenticated
+  if (!user) {
+    console.log("🚫 [SweetDreamsDashboard] No user found, redirecting to login");
     return (
       <div style={{ 
-        textAlign: "center", 
-        padding: "30px", 
-        color: "red",
-        fontSize: "16px"
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        background: 'linear-gradient(135deg, #FFF0F5 0%, #FFF8FB 100%)'
       }}>
-        Phát hiện dữ liệu xác thực không nhất quán. Vui lòng đăng nhập lại.
-        <div style={{ marginTop: "20px" }}>
-          <a href="/login" style={{ color: "#E91E63", textDecoration: "none" }}>
-            Đăng nhập lại
-          </a>
+        <div style={{ 
+          textAlign: "center", 
+          padding: "40px", 
+          background: "white",
+          borderRadius: "16px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+          maxWidth: "400px"
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+          <h3 style={{ color: "#e53e3e", marginBottom: "16px" }}>Chưa đăng nhập</h3>
+          <p style={{ color: "#666", marginBottom: "24px" }}>Vui lòng đăng nhập để truy cập trang này.</p>
+          <button 
+            onClick={() => window.location.href = '/login'}
+            style={{
+              background: "#E91E63",
+              color: "white",
+              border: "none",
+              padding: "12px 24px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontSize: "16px",
+              fontWeight: "600"
+            }}
+          >
+            Đăng nhập
+          </button>
         </div>
       </div>
     );
   }
 
   // Check if user is restaurant owner
-  if (user.role !== 'restaurant' && user.role !== 'admin') {
+  if (user.role !== 'restaurant') {
+    console.log("🚫 [SweetDreamsDashboard] User is not a restaurant owner:", user.role);
     return (
-      <div style={{ textAlign: "center", padding: "30px", color: "#d00" }}>
-        Bạn không có quyền truy cập trang này. Chỉ tài khoản nhà hàng mới có thể truy cập.
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        background: 'linear-gradient(135deg, #FFF0F5 0%, #FFF8FB 100%)'
+      }}>
+        <div style={{ 
+          textAlign: "center", 
+          padding: "40px", 
+          background: "white",
+          borderRadius: "16px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+          maxWidth: "400px"
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🚫</div>
+          <h3 style={{ color: "#e53e3e", marginBottom: "16px" }}>Không có quyền truy cập</h3>
+          <p style={{ color: "#666", marginBottom: "24px" }}>Chỉ tài khoản nhà hàng mới có thể truy cập trang này.</p>
+          <button 
+            onClick={() => window.location.href = '/'}
+            style={{
+              background: "#E91E63",
+              color: "white",
+              border: "none",
+              padding: "12px 24px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontSize: "16px",
+              fontWeight: "600"
+            }}
+          >
+            Về trang chủ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if this is the correct restaurant for SweetDreams Bakery
+  if (user.restaurantId !== 'rest_2' && user.username !== 'sweetdreams') {
+    console.log("🚫 [SweetDreamsDashboard] User is not authorized for SweetDreams Bakery:", {
+      restaurantId: user.restaurantId,
+      username: user.username
+    });
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        background: 'linear-gradient(135deg, #FFF0F5 0%, #FFF8FB 100%)'
+      }}>
+        <div style={{ 
+          textAlign: "center", 
+          padding: "40px", 
+          background: "white",
+          borderRadius: "16px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+          maxWidth: "400px"
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏪</div>
+          <h3 style={{ color: "#e53e3e", marginBottom: "16px" }}>Không phải nhà hàng của bạn</h3>
+          <p style={{ color: "#666", marginBottom: "24px" }}>Tài khoản này không có quyền truy cập SweetDreams Bakery.</p>
+          <button 
+            onClick={() => window.location.href = '/restaurant'}
+            style={{
+              background: "#E91E63",
+              color: "white",
+              border: "none",
+              padding: "12px 24px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontSize: "16px",
+              fontWeight: "600"
+            }}
+          >
+            Về trang nhà hàng
+          </button>
+        </div>
       </div>
     );
   }

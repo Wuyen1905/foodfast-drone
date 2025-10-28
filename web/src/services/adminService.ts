@@ -5,7 +5,7 @@ export interface Restaurant {
   location: string;
   rating: number;
   revenue: number;
-  drones: number;
+  droneCount: number;
   owner: string;
   status: 'active' | 'inactive' | 'maintenance';
   cuisine: string;
@@ -69,7 +69,7 @@ const mockRestaurants: Restaurant[] = [
     location: "Quận 1, TP.HCM",
     rating: 4.8,
     revenue: 12450000,
-    drones: 3,
+    droneCount: 3,
     owner: "Nguyễn Thị Lan",
     status: "active",
     cuisine: "Bakery & Desserts",
@@ -82,7 +82,7 @@ const mockRestaurants: Restaurant[] = [
     location: "Quận 3, TP.HCM",
     rating: 4.6,
     revenue: 8450000,
-    drones: 2,
+    droneCount: 2,
     owner: "Trần Minh Đức",
     status: "active",
     cuisine: "Asian Fusion",
@@ -95,7 +95,7 @@ const mockRestaurants: Restaurant[] = [
     location: "Quận 7, TP.HCM",
     rating: 4.4,
     revenue: 15600000,
-    drones: 4,
+    droneCount: 4,
     owner: "Lê Văn Hùng",
     status: "active",
     cuisine: "Italian",
@@ -108,7 +108,7 @@ const mockRestaurants: Restaurant[] = [
     location: "Quận 2, TP.HCM",
     rating: 4.9,
     revenue: 18900000,
-    drones: 5,
+    droneCount: 5,
     owner: "Yamamoto Hiroshi",
     status: "active",
     cuisine: "Japanese",
@@ -307,7 +307,7 @@ export const getSystemStats = async (): Promise<SystemStats> => {
   await simulateDelay();
   
   const totalRevenue = mockRestaurants.reduce((sum, r) => sum + r.revenue, 0);
-  const totalDrones = mockRestaurants.reduce((sum, r) => sum + r.drones, 0);
+  const totalDrones = mockRestaurants.reduce((sum, r) => sum + r.droneCount, 0);
   const totalOrdersToday = mockRestaurants.reduce((sum, r) => sum + r.ordersToday, 0);
   const avgDeliveryTime = mockRestaurants.reduce((sum, r) => sum + r.avgDeliveryTime, 0) / mockRestaurants.length;
   

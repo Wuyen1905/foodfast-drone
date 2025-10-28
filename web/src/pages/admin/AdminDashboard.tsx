@@ -357,8 +357,8 @@ const AdminDashboard: React.FC = () => {
         
         // Fallback to mock data
         setRestaurants([
-          { id: '1', name: 'Aloha Kitchen', status: 'Active', category: 'Asian Fusion', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 0 },
-          { id: '2', name: 'SweetDreams Bakery', status: 'Active', category: 'Bakery', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 0 }
+          { id: '1', name: 'Aloha Kitchen', status: 'Active', category: 'Asian Fusion', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 2 },
+          { id: '2', name: 'SweetDreams Bakery', status: 'Active', category: 'Bakery', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 3 }
         ]);
         setCustomers([]);
         setDrones([]);

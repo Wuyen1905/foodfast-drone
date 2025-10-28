@@ -400,7 +400,12 @@ const RestaurantTable: React.FC<RestaurantTableProps> = ({ restaurants, onUpdate
                       ⭐ {restaurant?.rating?.toFixed(1) || "0.0"}
                     </Rating>
                   </Td>
-                  <Td>{restaurant?.droneCount || 0} chiếc</Td>
+                  <Td>
+                    {(() => {
+                      const droneCount = restaurant?.droneCount || restaurant?.drones || 0;
+                      return droneCount > 0 ? `${droneCount} chiếc` : 'Chưa có máy bay';
+                    })()}
+                  </Td>
                   <Td>
                     {restaurant?.status === 'Pending' && (
                       <ActionButton
