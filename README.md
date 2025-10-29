@@ -25,27 +25,39 @@ Mục tiêu là xây dựng giao diện FE DEV chuyên nghiệp, xử lý quy tr
    npm run dev
 
 🔒 Tài khoản Admin mặc định:
+
 -Admin
+
 Tên đăng nhập: admin
+
 Mật khẩu: admin123
+
 -Nhà hàng: 
 
 +SweetDreams
+
 Tên đăng nhập: sweetdreams
+
 Mật khẩu: sweet123
 
 +Aloha
+
 Tên đăng nhập: aloha_restaurant
+
 Mật khẩu: aloha123
 
 -Người dùng:
 
 +Người dùng 1:
+
 Tên đăng nhập: user
+
 Mật khẩu: user123
 
 +Người dùng 2:
+
 Tên đăng nhập: user1
+
 Mật khẩu: user1123
 
 3.Mở trình duyệt tại địa chỉ:
@@ -68,6 +80,7 @@ Dự án hướng tới khả năng mở rộng và tích hợp thực tế tron
 
  Môn: Công nghệ phần mềm (CNPM)
 Vai trò: Phân tích yêu cầu, thiết kế, lập trình Front-end, viết tài liệu báo cáo
+
 
 
 
