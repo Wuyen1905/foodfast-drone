@@ -223,13 +223,6 @@ const RegisterPage: React.FC = () => {
       newErrors.email = "Email không hợp lệ";
     }
 
-    // Phone validation
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Số điện thoại là bắt buộc";
-    } else if (!validatePhone(formData.phone)) {
-      newErrors.phone = "Số điện thoại phải có 10-11 chữ số";
-    }
-
     // Password validation
     if (!formData.password) {
       newErrors.password = "Mật khẩu là bắt buộc";
@@ -296,7 +289,7 @@ const RegisterPage: React.FC = () => {
       console.log("📨 [RegisterPage] Registration result:", result);
 
       if (result.ok) {
-        toast.success("🎉 Registration successful! Welcome to FoodFast.");
+        toast.success("🎉 Đăng ký thành công! Chào mừng đến với FoodFast.");
         console.log("✅ [RegisterPage] Redirecting to login page");
         navigate("/login");
       } else {
@@ -314,7 +307,6 @@ const RegisterPage: React.FC = () => {
   const isFormValid = () => {
     const hasValidFields = formData.fullName.trim() &&
            formData.email.trim() &&
-           formData.phone.trim() &&
            formData.password.length >= 6 &&
            formData.confirmPassword === formData.password;
     
@@ -328,7 +320,6 @@ const RegisterPage: React.FC = () => {
       formData: {
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
-        phone: formData.phone.trim(),
         passwordLength: formData.password.length,
         passwordsMatch: formData.confirmPassword === formData.password
       }
@@ -404,29 +395,6 @@ const RegisterPage: React.FC = () => {
 
           <FormGroup>
             <InputContainer>
-              <InputIcon>📱</InputIcon>
-              <StyledInput
-                type="tel"
-                placeholder="Số điện thoại"
-                value={formData.phone}
-                onChange={(e) => handleInputChange('phone', formatPhoneNumber(e.target.value))}
-                disabled={busy}
-                $hasError={!!errors.phone}
-              />
-            </InputContainer>
-            {errors.phone && (
-              <ErrorMessage
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                ⚠️ {errors.phone}
-              </ErrorMessage>
-            )}
-          </FormGroup>
-
-          <FormGroup>
-            <InputContainer>
               <InputIcon>🔒</InputIcon>
               <StyledInput
                 type="password"
@@ -467,29 +435,6 @@ const RegisterPage: React.FC = () => {
                 transition={{ duration: 0.3 }}
               >
                 ⚠️ {errors.confirmPassword}
-              </ErrorMessage>
-            )}
-          </FormGroup>
-
-          <FormGroup>
-            <InputContainer>
-              <InputIcon>🏠</InputIcon>
-              <StyledInput
-                type="text"
-                placeholder="Địa chỉ (tùy chọn)"
-                value={formData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
-                disabled={busy}
-                $hasError={!!errors.address}
-              />
-            </InputContainer>
-            {errors.address && (
-              <ErrorMessage
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                ⚠️ {errors.address}
               </ErrorMessage>
             )}
           </FormGroup>

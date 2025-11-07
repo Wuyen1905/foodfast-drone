@@ -21,7 +21,7 @@ const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = ({ children }) =
         fontSize: '18px',
         color: '#666'
       }}>
-        Loading admin panel...
+        Đang tải bảng quản trị...
       </div>
     );
   }

@@ -176,13 +176,13 @@ const AdminUsers: React.FC = () => {
   };
 
   const handleDelete = (userId: string) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+    if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
       setUsers(users.filter(user => user.id !== userId));
     }
   };
 
   const handleAddUser = () => {
-    console.log('Add new user');
+    console.log('Thêm người dùng mới');
     // Implement add user functionality
   };
 
@@ -194,9 +194,9 @@ const AdminUsers: React.FC = () => {
     <Container>
       <AdminNavigation />
       <Header>
-        <Title>👥 Manage Users</Title>
+        <Title>👥 Quản lý người dùng</Title>
         <AddButton onClick={handleAddUser}>
-          + Add User
+          + Thêm người dùng
         </AddButton>
       </Header>
 
@@ -204,13 +204,13 @@ const AdminUsers: React.FC = () => {
         <Table>
           <thead>
             <tr>
-              <TableHeader>Name</TableHeader>
+              <TableHeader>Tên</TableHeader>
               <TableHeader>Email</TableHeader>
-              <TableHeader>Phone</TableHeader>
-              <TableHeader>Role</TableHeader>
-              <TableHeader>Orders</TableHeader>
-              <TableHeader>Created</TableHeader>
-              <TableHeader>Actions</TableHeader>
+              <TableHeader>Số điện thoại</TableHeader>
+              <TableHeader>Vai trò</TableHeader>
+              <TableHeader>Đơn hàng</TableHeader>
+              <TableHeader>Ngày tạo</TableHeader>
+              <TableHeader>Hành động</TableHeader>
             </tr>
           </thead>
           <tbody>
@@ -225,17 +225,19 @@ const AdminUsers: React.FC = () => {
                 <TableCell>{user.phone || '-'}</TableCell>
                 <TableCell>
                   <StatusBadge $status={user.role}>
-                    {user.role.toUpperCase()}
+                    {user.role === 'admin' ? 'Quản trị viên' : 
+                     user.role === 'restaurant' ? 'Nhà hàng' : 
+                     user.role === 'customer' ? 'Khách hàng' : user.role.toUpperCase()}
                   </StatusBadge>
                 </TableCell>
                 <TableCell>{user.orderCount || 0}</TableCell>
                 <TableCell>{formatDate(user.createdAt || Date.now())}</TableCell>
                 <TableCell>
                   <ActionButton $variant="Sửa" onClick={() => handleSửa(user.id)}>
-                    Edit
+                    Sửa
                   </ActionButton>
                   <ActionButton $variant="delete" onClick={() => handleDelete(user.id)}>
-                    Delete
+                    Xóa
                   </ActionButton>
                 </TableCell>
               </TableRow>

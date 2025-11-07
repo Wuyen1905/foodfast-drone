@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { NavLink } from 'react-router-dom';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context';
+import { useRestaurantSelection } from '@/context/RestaurantSelectionContext';
 import toast from 'react-hot-toast';
 
 const Bar = styled.header`
@@ -136,15 +137,41 @@ const LogoutButton = styled.button`
   }
 `;
 
+const RestaurantSelect = styled.select`
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease;
+  
+  &:hover {
+    border-color: var(--primary);
+  }
+  
+  &:focus {
+    border-color: var(--primary);
+  }
+`;
+
 const Navbar: React.FC = () => {
   const { items } = useCart();
   const { user, logout, isAdmin, isRestaurant, isCustomer } = useAuth();
+  const { selectedRestaurant, setSelectedRestaurant, availableRestaurants } = useRestaurantSelection();
   const count = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
   const [open, setOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
     toast.success('👋 Đã đăng xuất thành công!');
+  };
+  
+  const handleRestaurantChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedRestaurant(e.target.value as "SweetDreams" | "Aloha");
+    toast.success(`Đã chọn nhà hàng: ${e.target.value}`);
   };
   
   return (
@@ -155,6 +182,18 @@ const Navbar: React.FC = () => {
           {open ? '✕' : '☰'}
         </Burger>
         <Links open={open}>
+          {/* Restaurant selector for customers */}
+          {(!user || (user && isCustomer())) && (
+            <RestaurantSelect 
+              value={selectedRestaurant} 
+              onChange={handleRestaurantChange}
+              title="Chọn nhà hàng"
+            >
+              <option value="SweetDreams">🍰 SweetDreams</option>
+              <option value="Aloha">🌺 Aloha Kitchen</option>
+            </RestaurantSelect>
+          )}
+          
           {/* Hide Menu tab for restaurant users */}
           {!(user && isRestaurant()) && (
             <A to="/menu" title="Xem thực đơn">Thực đơn</A>

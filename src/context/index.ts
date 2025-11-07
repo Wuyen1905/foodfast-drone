@@ -5,4 +5,5 @@ export { CartProvider, useCart } from './CartContext';
 export { OrderProvider, useOrders } from './OrderContext';
 export { ThemeProvider, useTheme } from './ThemeContext';
 export { WishlistProvider, useWishlist } from './WishlistContext';
+export { RestaurantSelectionProvider, useRestaurantSelection } from './RestaurantSelectionContext';
 

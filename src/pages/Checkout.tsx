@@ -9,6 +9,7 @@ import styled from "styled-components";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { checkoutSchema, CheckoutFormData } from "../schemas/checkoutSchema";
+import { notifyRestaurant, determineRestaurantFromCartItems } from "../services/restaurantNotificationService";
 
 // Styled Components
 const CheckoutContainer = styled.div`
@@ -270,7 +271,9 @@ const Checkout: React.FC = () => {
     // Check order limit
     const existingOrders = getOrdersByPhone(form.phone);
     const activeOrders = existingOrders.filter((order: any) => 
-      order.status === "Processing" || order.status === "Delivering"
+      order.status === "Processing" || order.status === "Delivering" || 
+      order.status === "Đang xử lý" || order.status === "Đang giao hàng" ||
+      order.status === "Pending" || order.status === "In Progress"
     );
     
     if (activeOrders.length >= 2) {
@@ -289,9 +292,12 @@ const Checkout: React.FC = () => {
         const paymentResult = await simulateVNPayPayment();
         
         if (paymentResult.success) {
+          // Determine restaurant from cart items
+          const restaurantId = determineRestaurantFromCartItems(items);
+          
           // Create order with VNPay payment
           const orderId = Date.now().toString();
-          addOrder({
+          const newOrder = {
             id: orderId,
             name: form.name,
             phone: form.phone,
@@ -302,12 +308,25 @@ const Checkout: React.FC = () => {
               price: item.price
             })),
             total,
-            status: "Processing",
-            paymentMethod: 'vnpay',
-            paymentStatus: 'completed',
+            status: "Pending" as const,
+            paymentMethod: 'vnpay' as const,
+            paymentStatus: 'completed' as const,
             vnpayTransactionId: paymentResult.transactionId,
             dronePath: ["Nhà hàng", "Kho Drone", "Đang giao", "Hoàn tất"],
-          });
+            restaurantId: restaurantId || undefined,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          
+          addOrder(newOrder);
+          
+          // Notify restaurant about the new order
+          if (restaurantId) {
+            notifyRestaurant(newOrder).catch(err => {
+              console.error('Failed to notify restaurant:', err);
+              // Don't show error to user, order was still created successfully
+            });
+          }
           
           clear();
           toast.success("Thanh toán VNPay thành công!");
@@ -316,9 +335,12 @@ const Checkout: React.FC = () => {
           toast.error(paymentResult.message);
         }
       } else {
+        // Determine restaurant from cart items
+        const restaurantId = determineRestaurantFromCartItems(items);
+        
         // Handle other payment methods (COD, etc.)
         const orderId = Date.now().toString();
-        addOrder({
+        const newOrder = {
           id: orderId,
           name: form.name,
           phone: form.phone,
@@ -329,11 +351,24 @@ const Checkout: React.FC = () => {
             price: item.price
           })),
           total,
-          status: "Processing",
+          status: "Pending" as const,
           paymentMethod: form.payment as any,
           paymentStatus: form.payment === 'cod' ? 'Đang chờ phê duyệt' : 'completed',
           dronePath: ["Nhà hàng", "Kho Drone", "Đang giao", "Hoàn tất"],
-        });
+          restaurantId: restaurantId || undefined,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        
+        addOrder(newOrder);
+        
+        // Notify restaurant about the new order
+        if (restaurantId) {
+          notifyRestaurant(newOrder).catch(err => {
+            console.error('Failed to notify restaurant:', err);
+            // Don't show error to user, order was still created successfully
+          });
+        }
         
         clear();
         toast.success("Bạn đã đặt hàng thành công!");
@@ -610,8 +645,8 @@ const Checkout: React.FC = () => {
               <h3>Đang chuyển hướng đến VNPay...</h3>
               <p>Vui lòng chờ trong giây lát</p>
               <VNPayQRCode>
-                VNPay QR Code<br />
-                (Demo Mode)
+                Mã QR VNPay<br />
+                (Chế độ demo)
               </VNPayQRCode>
             </LoadingCard>
           </LoadingOverlay>

@@ -13,6 +13,7 @@ import DroneTracker from '@/components/restaurant/DroneTracker';
 import DroneTrackerMap from '@/components/restaurant/DroneTrackerMap';
 import MenuManagement from '@/components/restaurant/MenuManagement';
 import RestaurantAnalytics from '@/components/restaurant/RestaurantAnalytics';
+import OrderTracking from '@/components/restaurant/OrderTracking';
 
 // Import restaurant service
 import { 
@@ -217,7 +218,7 @@ const ErrorMessage = styled.div`
   border-left: 4px solid #c33;
 `;
 
-type TabType = 'overview' | 'menu' | 'drones';
+type TabType = 'overview' | 'menu' | 'orders' | 'drones';
 
 const SweetDreamsDashboard: React.FC = () => {
   const auth = useAuth();
@@ -482,6 +483,7 @@ const SweetDreamsDashboard: React.FC = () => {
   const tabs = [
     { id: 'overview' as TabType, icon: '📊', label: 'Tổng quan' },
     { id: 'menu' as TabType, icon: '🍽️', label: 'Quản lý món ăn' },
+    { id: 'orders' as TabType, icon: '📦', label: 'Quản lý đơn hàng' },
     { id: 'drones' as TabType, icon: '🚁', label: 'Mô phỏng Drone' },
   ];
 
@@ -524,15 +526,21 @@ const SweetDreamsDashboard: React.FC = () => {
             theme={sweetDreamsTheme} 
           />
         );
+      case 'orders':
+        return (
+          <div style={{ padding: '24px' }}>
+            <OrderTracking 
+              restaurantId={user?.restaurantId || 'sweetdreams'} 
+              theme={sweetDreamsTheme} 
+            />
+          </div>
+        );
       case 'drones':
         return (
           <div style={{ padding: '24px' }}>
             <DroneTrackerMap theme={sweetDreamsTheme} />
           </div>
         );
-      // Orders tab removed for restaurants
-      // case 'orders':
-      //   return <ActiveOrders restaurantId={user?.id} theme={sweetDreamsTheme} />;
       default:
         return null;
     }

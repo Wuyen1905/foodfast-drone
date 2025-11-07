@@ -7,6 +7,9 @@ import ProductCard from '../components/ProductCard';
 import ProductCardSkeletons from '../components/ProductCardSkeleton';
 import { useAuth } from '@/context';
 import { useRoleGuard } from '@/hooks/useRoleGuard';
+import { useRestaurantSelection } from '@/context/RestaurantSelectionContext';
+import { useMenu } from '@/context/MenuContext';
+import { getAvailableMenuByRestaurant } from '@/services/menuService';
 import toast from 'react-hot-toast';
 import AdminDashboard from './AdminDashboard';
 
@@ -191,24 +194,37 @@ const Label = styled.label`
 const Menu: React.FC = () => {
   const { user, isAdmin } = useAuth();
   const { isRestaurant, isCustomer } = useRoleGuard();
-  const [items, setItems] = useState(products);
-  const [filteredItems, setFilteredItems] = useState(products);
+  const { selectedRestaurant } = useRestaurantSelection();
+  const { getRestaurantAvailableProducts } = useMenu();
+  const [items, setItems] = useState<Product[]>([]);
+  const [filteredItems, setFilteredItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [catFilter, setCatFilter] = useState('All');
-  const [tagFilter, setTagFilter] = useState('All');
+  const [catFilter, setCatFilter] = useState('Tất cả');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
+  // Load products by selected restaurant
   useEffect(() => {
-    // Simulate loading for initial page load
-    const timer = setTimeout(() => {
-      setItems(products);
-      setFilteredItems(products);
-      setLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    const loadMenu = async () => {
+      setLoading(true);
+      try {
+        // For customers, load products from selected restaurant
+        const restaurantProducts = await getAvailableMenuByRestaurant(selectedRestaurant);
+        setItems(restaurantProducts);
+        setFilteredItems(restaurantProducts);
+      } catch (error) {
+        console.error('Error loading menu:', error);
+        toast.error('Không thể tải thực đơn');
+        setItems([]);
+        setFilteredItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadMenu();
+  }, [selectedRestaurant]);
 
   useEffect(() => {
     let result = items;
@@ -217,25 +233,20 @@ const Menu: React.FC = () => {
     if (search) {
       result = result.filter(p =>
         p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.description.toLowerCase().includes(search.toLowerCase())
+        (p.description && p.description.toLowerCase().includes(search.toLowerCase()))
       );
     }
     
     // Category filter
-    if (catFilter !== 'All') {
+    if (catFilter !== 'Tất cả') {
       result = result.filter(p => p.category === catFilter);
     }
     
-    // Tag filter
-    if (tagFilter !== 'All') {
-      result = result.filter(p => p.tag === tagFilter);
-    }
-    
     setFilteredItems(result);
-  }, [search, catFilter, tagFilter, items]);
+  }, [search, catFilter, items]);
 
-  const categories = ['All', ...Array.from(new Set(products.map(p => p.category)))];
-  const tags = ['All', 'Hot', 'New'];
+  // Get categories from current restaurant's products
+  const categories = ['Tất cả', ...Array.from(new Set(items.map(p => p.category)))];
 
   // Redirect admin users to admin dashboard
   if (user && isAdmin()) {
@@ -291,14 +302,7 @@ const Menu: React.FC = () => {
           <Select value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
             {categories.map(cat => (
               <option key={cat} value={cat}>
-                {cat === 'All' ? 'Tất cả danh mục' : cat}
-              </option>
-            ))}
-          </Select>
-          <Select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
-            {tags.map(tag => (
-              <option key={tag} value={tag}>
-                {tag === 'All' ? 'Tất cả' : tag === 'Hot' ? '🔥 Hot' : '✨ New'}
+                {cat === 'Tất cả' ? 'Tất cả danh mục' : cat}
               </option>
             ))}
           </Select>

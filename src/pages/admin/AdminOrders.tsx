@@ -206,7 +206,7 @@ const AdminOrders: React.FC = () => {
   };
 
   const handleCancelOrder = (orderId: string) => {
-    if (window.confirm('Are you sure you want to cancel this order?')) {
+    if (window.confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) {
       setOrders(orders.map(order => 
         order.id === orderId 
           ? { ...order, status: 'cancelled' as const, updatedAt: Date.now() }
@@ -223,13 +223,25 @@ const AdminOrders: React.FC = () => {
     ? orders 
     : orders.filter(order => order.status === statusFilter);
 
+  const getStatusLabel = (status: string): string => {
+    const statusMap: Record<string, string> = {
+      'Đang chờ phê duyệt': 'Đang chờ xử lý',
+      'confirmed': 'Đã xác nhận',
+      'preparing': 'Đang chuẩn bị',
+      'delivering': 'Đang giao hàng',
+      'delivered': 'Đã giao',
+      'cancelled': 'Đã hủy',
+    };
+    return statusMap[status] || status;
+  };
+
   const getUserName = (userId: string) => {
     const userNames: { [key: string]: string } = {
       'u2': 'John Doe',
       'u3': 'Jane Smith',
       'u4': 'Mike Johnson'
     };
-    return userNames[userId] || 'Unknown User';
+    return userNames[userId] || 'Người dùng không xác định';
   };
 
   const getRestaurantName = (restaurantId: string) => {
@@ -238,7 +250,7 @@ const AdminOrders: React.FC = () => {
       'rest_2': 'SweetDreams Bakery',
       'rest_3': 'Pizza Palace'
     };
-    return restaurantNames[restaurantId] || 'Unknown Restaurant';
+    return restaurantNames[restaurantId] || 'Nhà hàng không xác định';
   };
 
   return (
@@ -287,7 +299,7 @@ const AdminOrders: React.FC = () => {
                 <TableCell>{getUserName(order.userId)}</TableCell>
                 <TableCell>{getRestaurantName(order.restaurantId)}</TableCell>
                 <TableCell>
-                  {order.items.length} item(s)
+                  {order.items.length} món
                   <br />
                   <small style={{ color: '#999' }}>
                     {order.items.map(item => item.productName).join(', ')}
@@ -298,20 +310,20 @@ const AdminOrders: React.FC = () => {
                 </TableCell>
                 <TableCell>
                   <StatusBadge $status={order.status}>
-                    {order.status.toUpperCase()}
+                    {getStatusLabel(order.status)}
                   </StatusBadge>
                 </TableCell>
                 <TableCell>{formatDate(order.createdAt)}</TableCell>
                 <TableCell>
                   <ActionButton $variant="view" onClick={() => handleViewOrder(order.id)}>
-                    View
+                    Xem
                   </ActionButton>
                   <ActionButton $variant="update" onClick={() => handleUpdateStatus(order.id)}>
-                    Update
+                    Cập nhật
                   </ActionButton>
                   {order.status !== 'cancelled' && order.status !== 'delivered' && (
                     <ActionButton $variant="cancel" onClick={() => handleCancelOrder(order.id)}>
-                      Cancel
+                      Hủy
                     </ActionButton>
                   )}
                 </TableCell>

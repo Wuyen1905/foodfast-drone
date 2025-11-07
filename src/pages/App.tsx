@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { MenuProvider } from '@/context/MenuContext';
+import { RestaurantSelectionProvider } from '@/context/RestaurantSelectionContext';
 import Menu from './Menu';
 import Details from './Details';
 import Cart from './Cart';
@@ -51,12 +52,13 @@ const RoleGuardedRoute: React.FC<{ children: React.ReactNode; allowedRoles: stri
 
 const App: React.FC = () => {
   return (
-    <MenuProvider>
-      <BrowserRouter>
-        <ResponsiveLayout>
-          <Navbar />
-          <ThemeToggle />
-        <Routes>
+    <RestaurantSelectionProvider>
+      <MenuProvider>
+        <BrowserRouter>
+          <ResponsiveLayout>
+            <Navbar />
+            <ThemeToggle />
+          <Routes>
             <Route path="/" element={<Navigate to="/menu" replace />} />
             <Route path="/home" element={<Navigate to="/menu" replace />} />
             <Route path="/homepage" element={<Navigate to="/menu" replace />} />
@@ -158,9 +160,10 @@ const App: React.FC = () => {
             } />
           </Routes>
           <Footer />
-        </ResponsiveLayout>
-      </BrowserRouter>
-    </MenuProvider>
+          </ResponsiveLayout>
+        </BrowserRouter>
+      </MenuProvider>
+    </RestaurantSelectionProvider>
   );
 };
 

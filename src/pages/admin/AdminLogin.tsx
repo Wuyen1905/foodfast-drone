@@ -189,7 +189,7 @@ const AdminLogin: React.FC = () => {
           <Button type="submit" disabled={loading}>
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Button>
-          {error && <ErrorMessage>{error === 'Invalid admin credentials' ? 'Thông tin đăng nhập không hợp lệ' : error}</ErrorMessage>}
+          {error && <ErrorMessage>{error.includes('Invalid') || error.includes('credentials') ? 'Thông tin đăng nhập không hợp lệ' : error}</ErrorMessage>}
         </Form>
 
         <CredentialsBox>

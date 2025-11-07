@@ -357,8 +357,8 @@ const AdminDashboard: React.FC = () => {
         
         // Fallback to mock data
         setRestaurants([
-          { id: '1', name: 'Aloha Kitchen', status: 'Active', category: 'Asian Fusion', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 2 },
-          { id: '2', name: 'SweetDreams Bakery', status: 'Active', category: 'Bakery', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 3 }
+          { id: '1', name: 'Aloha Kitchen', status: 'Đang hoạt động', category: 'Asian Fusion', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 2 },
+          { id: '2', name: 'SweetDreams Bakery', status: 'Đang hoạt động', category: 'Bakery', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 3 }
         ]);
         setCustomers([]);
         setDrones([]);
@@ -418,7 +418,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleEmergencyOverride = () => {
     if (!admin || !emergencyTargetId || !emergencyTargetName || !emergencyAction) {
-      toast.error('Please fill all fields');
+      toast.error('Vui lòng điền đầy đủ thông tin');
       return;
     }
     

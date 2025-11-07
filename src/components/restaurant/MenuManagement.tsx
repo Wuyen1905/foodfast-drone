@@ -143,10 +143,15 @@ const MenuManagement: React.FC<MenuManagementProps> = ({ restaurantId, theme }) 
     if (!window.confirm('Bạn có chắc chắn muốn xóa món ăn này?')) return;
     
     try {
-      const success = await deleteProduct(dishId);
+      const restaurant: "SweetDreams" | "Aloha" = restaurantId === 'sweetdreams' ? 'SweetDreams' : 'Aloha';
+      const success = await deleteProduct(dishId, restaurant);
       if (success) {
-        const updatedDishes = dishes.filter(d => d.id !== dishId);
-        setDishes(updatedDishes);
+        // Reload dishes from service to ensure consistency
+        const restaurantProducts = await getRestaurantProducts(restaurant);
+        setDishes(restaurantProducts);
+        // Refresh stats
+        const statsData = await getRestaurantMenuStats(restaurant);
+        setStats(statsData);
       }
     } catch (error) {
       console.error('Error deleting dish:', error);
@@ -175,17 +180,24 @@ const MenuManagement: React.FC<MenuManagementProps> = ({ restaurantId, theme }) 
       };
 
       if (editingDish) {
-        const updatedDish = await updateProduct(editingDish.id, dishData);
+        const updatedDish = await updateProduct(editingDish.id, dishData, restaurant);
         if (updatedDish) {
-          const updatedDishes = dishes.map(d => d.id === editingDish.id ? updatedDish : d);
-          setDishes(updatedDishes);
+          // Reload dishes from service to ensure consistency
+          const restaurantProducts = await getRestaurantProducts(restaurant);
+          setDishes(restaurantProducts);
         }
       } else {
         const newDish = await addProduct(dishData);
         if (newDish) {
-          setDishes([...dishes, newDish]);
+          // Reload dishes from service to ensure consistency
+          const restaurantProducts = await getRestaurantProducts(restaurant);
+          setDishes(restaurantProducts);
         }
       }
+      
+      // Refresh stats
+      const statsData = await getRestaurantMenuStats(restaurant);
+      setStats(statsData);
       
       setIsModalOpen(false);
     } catch (error) {

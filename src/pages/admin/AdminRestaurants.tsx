@@ -184,7 +184,7 @@ const AdminRestaurants: React.FC = () => {
   };
 
   const handleDelete = (restaurantId: string) => {
-    if (window.confirm('Are you sure you want to delete this restaurant?')) {
+    if (window.confirm('Bạn có chắc chắn muốn xóa nhà hàng này?')) {
       setRestaurants(restaurants.filter(restaurant => restaurant.id !== restaurantId));
     }
   };
@@ -198,7 +198,7 @@ const AdminRestaurants: React.FC = () => {
   };
 
   const handleAddRestaurant = () => {
-    console.log('Add new restaurant');
+    console.log('Thêm nhà hàng mới');
     // Implement add restaurant functionality
   };
 
@@ -224,9 +224,9 @@ const AdminRestaurants: React.FC = () => {
     <Container>
       <AdminNavigation />
       <Header>
-        <Title>🏪 Manage Restaurants</Title>
+        <Title>🏪 Quản lý nhà hàng</Title>
         <AddButton onClick={handleAddRestaurant}>
-          + Add Restaurant
+          + Thêm nhà hàng
         </AddButton>
       </Header>
 
@@ -234,13 +234,13 @@ const AdminRestaurants: React.FC = () => {
         <Table>
           <thead>
             <tr>
-              <TableHeader>Name</TableHeader>
-              <TableHeader>Category</TableHeader>
-              <TableHeader>Location</TableHeader>
-              <TableHeader>Rating</TableHeader>
-              <TableHeader>Status</TableHeader>
-              <TableHeader>Created</TableHeader>
-              <TableHeader>Actions</TableHeader>
+              <TableHeader>Tên</TableHeader>
+              <TableHeader>Danh mục</TableHeader>
+              <TableHeader>Địa điểm</TableHeader>
+              <TableHeader>Đánh giá</TableHeader>
+              <TableHeader>Trạng thái</TableHeader>
+              <TableHeader>Ngày tạo</TableHeader>
+              <TableHeader>Hành động</TableHeader>
             </tr>
           </thead>
           <tbody>
@@ -260,7 +260,7 @@ const AdminRestaurants: React.FC = () => {
                 </TableCell>
                 <TableCell>
                   <StatusBadge active={restaurant.isActive}>
-                    {restaurant.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    {restaurant.isActive ? 'Đang hoạt động' : 'Ngừng hoạt động'}
                   </StatusBadge>
                 </TableCell>
                 <TableCell>{formatDate(restaurant.createdAt)}</TableCell>
@@ -269,10 +269,10 @@ const AdminRestaurants: React.FC = () => {
                     Sửa
                   </ActionButton>
                   <ActionButton variant="toggle" onClick={() => handleToggleStatus(restaurant.id)}>
-                    {restaurant.isActive ? 'Deactivate' : 'Activate'}
+                    {restaurant.isActive ? 'Ngừng hoạt động' : 'Kích hoạt'}
                   </ActionButton>
                   <ActionButton variant="delete" onClick={() => handleDelete(restaurant.id)}>
-                    Delete
+                    Xóa
                   </ActionButton>
                 </TableCell>
               </TableRow>

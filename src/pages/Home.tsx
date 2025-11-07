@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { products } from '../data/products';
+import { products, Product } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import ProductCardSkeletons from '../components/ProductCardSkeleton';
 import { useAuth } from '@/context';
+import { useRestaurantSelection } from '@/context/RestaurantSelectionContext';
+import { getAvailableMenuByRestaurant } from '@/services/menuService';
 import AdminDashboard from './AdminDashboard';
 
 const Page = styled.div`
@@ -89,17 +91,28 @@ const Grid = styled.div`
 
 const Home: React.FC = () => {
   const { user, isAdmin } = useAuth();
-  const [items, setItems] = useState(products);
+  const { selectedRestaurant } = useRestaurantSelection();
+  const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setItems(products);
-      setLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
+    // Load products from selected restaurant
+    const loadMenu = async () => {
+      setLoading(true);
+      try {
+        const restaurantProducts = await getAvailableMenuByRestaurant(selectedRestaurant);
+        // Show only first 6 items on home page
+        setItems(restaurantProducts.slice(0, 6));
+      } catch (error) {
+        console.error('Error loading menu:', error);
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadMenu();
+  }, [selectedRestaurant]);
 
   // Show admin dashboard for admin users
   if (user && isAdmin()) {

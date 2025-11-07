@@ -26,9 +26,9 @@ interface MenuContextType {
   // Actions
   refreshProducts: () => Promise<void>;
   addProduct: (product: Omit<Product, 'id'>) => Promise<Product | null>;
-  updateProduct: (id: string, updates: Partial<Product>) => Promise<Product | null>;
-  deleteProduct: (id: string) => Promise<boolean>;
-  toggleAvailability: (id: string) => Promise<Product | null>;
+  updateProduct: (id: string, updates: Partial<Product>, restaurantContext?: "SweetDreams" | "Aloha") => Promise<Product | null>;
+  deleteProduct: (id: string, restaurantContext?: "SweetDreams" | "Aloha") => Promise<boolean>;
+  toggleAvailability: (id: string, restaurantContext?: "SweetDreams" | "Aloha") => Promise<Product | null>;
   
   // Restaurant-specific actions
   getRestaurantProducts: (restaurant: "SweetDreams" | "Aloha") => Product[];
@@ -84,9 +84,15 @@ export const MenuProvider: React.FC<MenuProviderProps> = ({ children }) => {
     await loadProducts();
   };
 
-  // Add product
+  // Add product (ensures restaurant assignment)
   const addProduct = async (product: Omit<Product, 'id'>): Promise<Product | null> => {
     try {
+      // Ensure restaurant is set (should be set by caller, but validate)
+      if (!product.restaurant) {
+        toast.error("Không thể xác định nhà hàng");
+        return null;
+      }
+      
       const newProduct = await addMenuItem(product);
       if (newProduct) {
         await refreshProducts();
@@ -101,16 +107,22 @@ export const MenuProvider: React.FC<MenuProviderProps> = ({ children }) => {
     }
   };
 
-  // Update product
-  const updateProduct = async (id: string, updates: Partial<Product>): Promise<Product | null> => {
+  // Update product (with restaurant validation)
+  const updateProduct = async (
+    id: string, 
+    updates: Partial<Product>,
+    restaurantContext?: "SweetDreams" | "Aloha"
+  ): Promise<Product | null> => {
     try {
-      const updatedProduct = await updateMenuItem(id, updates);
+      const updatedProduct = await updateMenuItem(id, updates, restaurantContext);
       if (updatedProduct) {
         await refreshProducts();
         toast.success("Món ăn đã được cập nhật và đồng bộ!");
         return updatedProduct;
+      } else {
+        toast.error("Không thể cập nhật món ăn. Có thể món ăn không thuộc nhà hàng của bạn.");
+        return null;
       }
-      return null;
     } catch (error) {
       console.error("Error updating product:", error);
       toast.error("Không thể cập nhật món ăn");
@@ -118,16 +130,21 @@ export const MenuProvider: React.FC<MenuProviderProps> = ({ children }) => {
     }
   };
 
-  // Delete product
-  const deleteProduct = async (id: string): Promise<boolean> => {
+  // Delete product (with restaurant validation)
+  const deleteProduct = async (
+    id: string,
+    restaurantContext?: "SweetDreams" | "Aloha"
+  ): Promise<boolean> => {
     try {
-      const success = await deleteMenuItem(id);
+      const success = await deleteMenuItem(id, restaurantContext);
       if (success) {
         await refreshProducts();
         toast.success("Món ăn đã được xóa khỏi thực đơn!");
         return true;
+      } else {
+        toast.error("Không thể xóa món ăn. Có thể món ăn không thuộc nhà hàng của bạn.");
+        return false;
       }
-      return false;
     } catch (error) {
       console.error("Error deleting product:", error);
       toast.error("Không thể xóa món ăn");
@@ -135,17 +152,22 @@ export const MenuProvider: React.FC<MenuProviderProps> = ({ children }) => {
     }
   };
 
-  // Toggle availability
-  const toggleAvailability = async (id: string): Promise<Product | null> => {
+  // Toggle availability (with restaurant validation)
+  const toggleAvailability = async (
+    id: string,
+    restaurantContext?: "SweetDreams" | "Aloha"
+  ): Promise<Product | null> => {
     try {
-      const updatedProduct = await toggleProductAvailability(id);
+      const updatedProduct = await toggleProductAvailability(id, restaurantContext);
       if (updatedProduct) {
         await refreshProducts();
         const status = updatedProduct.available ? "có sẵn" : "hết hàng";
         toast.success(`Món ăn đã được cập nhật trạng thái: ${status}`);
         return updatedProduct;
+      } else {
+        toast.error("Không thể cập nhật trạng thái. Có thể món ăn không thuộc nhà hàng của bạn.");
+        return null;
       }
-      return null;
     } catch (error) {
       console.error("Error toggling availability:", error);
       toast.error("Không thể cập nhật trạng thái món ăn");

@@ -163,7 +163,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
       <Logo>
         <LogoTitle>
           <span>🚁</span>
-          FoodFast Admin
+          FoodFast Quản trị
         </LogoTitle>
         <LogoSubtitle>Trung tâm Quản trị</LogoSubtitle>
       </Logo>

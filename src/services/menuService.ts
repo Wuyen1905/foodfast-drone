@@ -66,8 +66,12 @@ export const addMenuItem = async (item: Omit<Product, 'id'>): Promise<Product> =
   return newItem;
 };
 
-// Update menu item
-export const updateMenuItem = async (id: string, updatedItem: Partial<Product>): Promise<Product | null> => {
+// Update menu item (with restaurant validation)
+export const updateMenuItem = async (
+  id: string, 
+  updatedItem: Partial<Product>,
+  restaurantContext?: "SweetDreams" | "Aloha"
+): Promise<Product | null> => {
   await simulateDelay();
   
   const allProducts = loadProducts();
@@ -75,20 +79,45 @@ export const updateMenuItem = async (id: string, updatedItem: Partial<Product>):
   
   if (index === -1) return null;
   
-  allProducts[index] = { ...allProducts[index], ...updatedItem };
+  const existingProduct = allProducts[index];
+  
+  // Enforce restaurant restriction: restaurants can only update their own products
+  if (restaurantContext && existingProduct.restaurant !== restaurantContext) {
+    console.warn(`Restaurant ${restaurantContext} attempted to update product from ${existingProduct.restaurant}`);
+    return null;
+  }
+  
+  // Prevent changing restaurant assignment via update
+  const safeUpdate = { ...updatedItem };
+  if ('restaurant' in safeUpdate && safeUpdate.restaurant !== existingProduct.restaurant) {
+    delete safeUpdate.restaurant;
+  }
+  
+  allProducts[index] = { ...allProducts[index], ...safeUpdate };
   saveProducts(allProducts);
   
   return allProducts[index];
 };
 
-// Delete menu item
-export const deleteMenuItem = async (id: string): Promise<boolean> => {
+// Delete menu item (with restaurant validation)
+export const deleteMenuItem = async (
+  id: string,
+  restaurantContext?: "SweetDreams" | "Aloha"
+): Promise<boolean> => {
   await simulateDelay();
   
   const allProducts = loadProducts();
   const index = allProducts.findIndex(p => p.id === id);
   
   if (index === -1) return false;
+  
+  const existingProduct = allProducts[index];
+  
+  // Enforce restaurant restriction: restaurants can only delete their own products
+  if (restaurantContext && existingProduct.restaurant !== restaurantContext) {
+    console.warn(`Restaurant ${restaurantContext} attempted to delete product from ${existingProduct.restaurant}`);
+    return false;
+  }
   
   allProducts.splice(index, 1);
   saveProducts(allProducts);
@@ -161,14 +190,25 @@ export const getRestaurantMenuStats = async (restaurant: "SweetDreams" | "Aloha"
   };
 };
 
-// Toggle product availability
-export const toggleProductAvailability = async (id: string): Promise<Product | null> => {
+// Toggle product availability (with restaurant validation)
+export const toggleProductAvailability = async (
+  id: string,
+  restaurantContext?: "SweetDreams" | "Aloha"
+): Promise<Product | null> => {
   await simulateDelay();
   
   const allProducts = loadProducts();
   const index = allProducts.findIndex(p => p.id === id);
   
   if (index === -1) return null;
+  
+  const existingProduct = allProducts[index];
+  
+  // Enforce restaurant restriction: restaurants can only toggle their own products
+  if (restaurantContext && existingProduct.restaurant !== restaurantContext) {
+    console.warn(`Restaurant ${restaurantContext} attempted to toggle product from ${existingProduct.restaurant}`);
+    return null;
+  }
   
   allProducts[index].available = !allProducts[index].available;
   saveProducts(allProducts);
