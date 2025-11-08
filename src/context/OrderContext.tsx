@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
-export type OrderStatus = "Pending" | "Confirmed" | "In Progress" | "Ready" | "Delivered" | "Cancelled";
+export type OrderStatus = "Pending" | "Confirmed" | "In Progress" | "Ready" | "Delivering" | "Delivered" | "Cancelled";
 
 export type Order = {
   id: string;

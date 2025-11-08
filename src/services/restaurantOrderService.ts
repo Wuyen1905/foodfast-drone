@@ -137,6 +137,7 @@ export const rejectOrder = async (orderId: string, reason?: string): Promise<boo
 /**
  * Update order status
  * Simulates: PATCH /api/orders/{orderId}/status
+ * Includes drone assignment/release logic
  */
 export const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<boolean> => {
   await simulateDelay();
@@ -157,8 +158,35 @@ export const updateOrderStatus = async (orderId: string, status: OrderStatus): P
     return false;
   }
   
+  const order = orders[orderIndex];
+  
+  // Handle drone assignment/release based on status
+  if (status === 'Delivering') {
+    // Assign drone to order when status changes to "Delivering"
+    if (order.restaurantId) {
+      try {
+        const { assignDroneToOrder } = await import('./droneService');
+        await assignDroneToOrder(orderId, order.restaurantId);
+        console.log(`✅ [restaurantOrderService] Drone assigned to order ${orderId}`);
+      } catch (error) {
+        console.error(`❌ [restaurantOrderService] Error assigning drone to order ${orderId}:`, error);
+        // Continue with status update even if drone assignment fails
+      }
+    }
+  } else if (status === 'Delivered') {
+    // Release drone from order when status changes to "Delivered"
+    try {
+      const { releaseDroneFromOrder } = await import('./droneService');
+      await releaseDroneFromOrder(orderId);
+      console.log(`✅ [restaurantOrderService] Drone released from order ${orderId}`);
+    } catch (error) {
+      console.error(`❌ [restaurantOrderService] Error releasing drone from order ${orderId}:`, error);
+      // Continue with status update even if drone release fails
+    }
+  }
+  
   orders[orderIndex] = {
-    ...orders[orderIndex],
+    ...order,
     status,
     updatedAt: Date.now()
   };
@@ -220,7 +248,8 @@ export const getNextStatuses = (currentStatus: OrderStatus): OrderStatus[] => {
     'Pending': ['Confirmed', 'Cancelled'],
     'Confirmed': ['In Progress', 'Cancelled'],
     'In Progress': ['Ready', 'Cancelled'],
-    'Ready': ['Delivered', 'Cancelled'],
+    'Ready': ['Delivering', 'Cancelled'],
+    'Delivering': ['Delivered', 'Cancelled'],
     'Delivered': [],
     'Cancelled': []
   };

@@ -338,16 +338,44 @@ const OrderTracking: React.FC = () => {
   const DroneTracking = ({ order }: { order: any }) => {
     const droneState = droneStates[order.id];
     const [isAnimationActive, setIsAnimationActive] = useState(false);
+    const [assignedDrone, setAssignedDrone] = useState<any>(null);
 
-    // Start animation when order status changes to "Delivering"
+    // Fetch drone assigned to this order using service logic
     useEffect(() => {
-      if (order.status === ORDER_STATUS.DELIVERING && !droneState) {
+      const fetchDroneForOrder = async () => {
+        try {
+          // Use service to get order with drone
+          const { getOrderWithDrone } = await import('../services/orderService');
+          const { order: orderData, drone } = await getOrderWithDrone(order.id);
+          
+          if (drone) {
+            setAssignedDrone(drone);
+          } else {
+            console.warn(`⚠️ No drone assigned for order ${order.id}.`);
+          }
+        } catch (error) {
+          console.error(`[OrderTracking] Error fetching drone for order ${order.id}:`, error);
+        }
+      };
+
+      if (order.id) {
+        fetchDroneForOrder();
+      }
+    }, [order.id]);
+
+    // Start animation when order status changes to "Delivering" and has assigned drone
+    useEffect(() => {
+      // Use service logic to determine if drone should be shown
+      const { shouldShowDroneTracking } = require('../services/orderService');
+      const shouldShow = shouldShowDroneTracking(order, assignedDrone);
+
+      if (shouldShow && !droneState) {
         setIsAnimationActive(true);
         startDroneTracking(order.id);
-      } else if (order.status === ORDER_STATUS.COMPLETED) {
+      } else if (order.status === ORDER_STATUS.COMPLETED || order.status === 'Cancelled') {
         setIsAnimationActive(false);
       }
-    }, [order.status, droneState]);
+    }, [order.status, order, assignedDrone, droneState]);
 
     const handleDroneComplete = () => {
       updateOrderStatus(order.id, ORDER_STATUS.COMPLETED);
@@ -355,8 +383,19 @@ const OrderTracking: React.FC = () => {
       toast.success("🛸 Drone successfully delivered your order!");
     };
 
-    // Only show animation for active deliveries or completed orders
-    if (order.status !== ORDER_STATUS.DELIVERING && order.status !== ORDER_STATUS.COMPLETED) {
+    // Use service logic to determine if drone tracking should be shown
+    // Hide if order is cancelled or completed (drone should have returned)
+    if (order.status === 'Cancelled' || order.status === ORDER_STATUS.COMPLETED) {
+      return null;
+    }
+
+    // Only show if order is in progress and has an assigned drone
+    const isActiveDelivery = order.status === ORDER_STATUS.DELIVERING || 
+                            order.status === 'delivering' || 
+                            order.status === 'In Progress' ||
+                            order.status === 'Ready';
+    
+    if (!isActiveDelivery || !assignedDrone) {
       return null;
     }
 

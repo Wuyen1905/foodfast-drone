@@ -16,6 +16,7 @@ export interface Drone {
   status: 'active' | 'maintenance' | 'offline' | 'returning';
   restaurant?: string;
   restaurantId?: string;
+  orderId?: string | null; // Links to order ID
   position?: {
     lat: number;
     lng: number;

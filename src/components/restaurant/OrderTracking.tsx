@@ -9,8 +9,7 @@ import {
   confirmOrder as confirmOrderService, 
   rejectOrder as rejectOrderService,
   updateOrderStatus as updateOrderStatusService,
-  addOrderNote as addOrderNoteService,
-  getNextStatuses
+  addOrderNote as addOrderNoteService
 } from '@/services/restaurantOrderService';
 
 interface Theme {
@@ -210,6 +209,8 @@ const StatusBadge = styled.span<{ $status: string }>`
         return 'background: #FFE0B2; color: #E65100;';
       case 'ready':
         return 'background: #C8E6C9; color: #2E7D32;';
+      case 'delivering':
+        return 'background: #BBDEFB; color: #1565C0;';
       case 'delivered':
         return 'background: #B2DFDB; color: #00695C;';
       case 'cancelled':
@@ -313,6 +314,9 @@ const EmptyState = styled.div`
   color: #999;
 `;
 
+// Status options for dropdown - fixed order
+const STATUS_OPTIONS: OrderStatus[] = ['In Progress', 'Delivering', 'Delivered', 'Cancelled'];
+
 // Helper function to translate order status to Vietnamese
 const getStatusLabel = (status: string): string => {
   const statusMap: Record<string, string> = {
@@ -320,10 +324,10 @@ const getStatusLabel = (status: string): string => {
     'Confirmed': 'Đã xác nhận',
     'In Progress': 'Đang chuẩn bị',
     'Ready': 'Sẵn sàng',
+    'Delivering': 'Đang giao',
     'Delivered': 'Đã giao',
     'Cancelled': 'Đã hủy',
     'Processing': 'Đang xử lý',
-    'Delivering': 'Đang giao hàng',
   };
   return statusMap[status] || status;
 };
@@ -608,16 +612,23 @@ const OrderTracking: React.FC<OrderTrackingProps> = ({ restaurantId, theme }) =>
                     </>
                   )}
                   
-                  {order.status !== 'Pending' && order.status !== 'Cancelled' && order.status !== 'Delivered' && (
+                  {order.status !== 'Pending' && (
                     <>
                       <StatusSelect
-                        value={order.status}
+                        value={STATUS_OPTIONS.includes(order.status as OrderStatus) ? order.status : STATUS_OPTIONS[0]}
                         onChange={(e) => handleUpdateStatus(order.id, e.target.value as OrderStatus)}
                       >
-                        <option value={order.status}>{getStatusLabel(order.status)} (Hiện tại)</option>
-                        {getNextStatuses(order.status as OrderStatus).map(status => (
-                          <option key={status} value={status}>{getStatusLabel(status)}</option>
-                        ))}
+                        {STATUS_OPTIONS.map((status) => {
+                          const isCurrentStatus = order.status === status;
+                          return (
+                            <option 
+                              key={status} 
+                              value={status}
+                            >
+                              {getStatusLabel(status)}{isCurrentStatus ? ' (Hiện tại)' : ''}
+                            </option>
+                          );
+                        })}
                       </StatusSelect>
                     </>
                   )}
