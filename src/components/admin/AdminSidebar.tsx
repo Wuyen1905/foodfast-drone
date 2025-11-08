@@ -139,8 +139,8 @@ const UserRole = styled.div`
 `;
 
 interface AdminSidebarProps {
-  activeTab: 'overview' | 'restaurants' | 'customers' | 'drones' | 'logs';
-  onTabChange: (tab: 'overview' | 'restaurants' | 'customers' | 'drones' | 'logs') => void;
+  activeTab: 'overview' | 'restaurants' | 'customers' | 'drones' | 'logs' | 'assistant';
+  onTabChange: (tab: 'overview' | 'restaurants' | 'customers' | 'drones' | 'logs' | 'assistant') => void;
   adminName: string;
   stats?: {
     pendingRestaurants?: number;
@@ -232,6 +232,16 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         >
           <NavIcon>📋</NavIcon>
           <NavLabel>Nhật ký hệ thống</NavLabel>
+        </NavItem>
+        
+        <NavItem
+          $active={activeTab === 'assistant'}
+          onClick={() => onTabChange('assistant')}
+          whileHover={{ x: 5 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <NavIcon>🤖</NavIcon>
+          <NavLabel>AI Assistant</NavLabel>
         </NavItem>
       </NavSection>
       

@@ -1,0 +1,2 @@
+2025-11-08T11:26:42.696Z ⚠️ Installed: react-is, prop-types, d3-scale, d3-shape, d3-time, d3-time-format, d3-color, d3-interpolate, d3-array
+2025-11-08T12:29:02.516Z ✅ All dependencies already installed.

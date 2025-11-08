@@ -204,6 +204,7 @@ const Navbar: React.FC = () => {
             <>
               <CartLink to="/cart" title="Xem giỏ hàng" data-count={count}>Giỏ hàng</CartLink>
               <A to="/checkout" title="Thanh toán">Thanh toán</A>
+              <A to="/order-history" title="Lịch sử đơn hàng">Lịch sử đơn hàng</A>
             </>
           )}
           

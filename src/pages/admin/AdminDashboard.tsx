@@ -18,6 +18,9 @@ import RestaurantTable from '@/components/admin/RestaurantTable';
 import CustomerTable from '@/components/admin/CustomerTable';
 import DroneMonitor from '@/components/admin/DroneMonitor';
 import SystemLogs from '@/components/admin/SystemLogs';
+import AssistantTab from './AssistantTab';
+import { RealtimeBadge } from '@/components/indicators/RealtimeBadge';
+import { getLastUpdateTimestamp } from '@/services/adminRealtime';
 
 // Import admin services
 import {
@@ -286,7 +289,7 @@ const WarningBox = styled.div`
   }
 `;
 
-type TabType = 'overview' | 'restaurants' | 'customers' | 'drones' | 'logs';
+type TabType = 'overview' | 'restaurants' | 'customers' | 'drones' | 'logs' | 'assistant';
 
 const AdminDashboard: React.FC = () => {
   const { admin, logout } = useAdminAuth();
@@ -317,6 +320,7 @@ const AdminDashboard: React.FC = () => {
     pendingRestaurants: 0,
     maintenanceDrones: 0
   });
+  const [lastUpdate, setLastUpdate] = useState<string>(new Date().toISOString());
 
   // Safe array validation helpers
   const safeRestaurants = Array.isArray(restaurants) ? restaurants : [];
@@ -333,75 +337,132 @@ const AdminDashboard: React.FC = () => {
 
   // Safe data loading with fallback
   useEffect(() => {
+    let cleanupServices: (() => void) | null = null;
+    let isMounted = true;
+    
     const loadData = async () => {
       try {
         console.log("[AdminDashboard] Loading data...");
         
-        // Load data with fallback
+        // Import integration helper (dynamic import to avoid breaking if service fails)
+        let getEnhancedAdminStats: any;
+        let getEnhancedDroneFleet: any;
+        let initializeAdminServices: any;
+        
+        try {
+          const integration = await import('@/services/adminServiceIntegration');
+          getEnhancedAdminStats = integration.getEnhancedAdminStats;
+          getEnhancedDroneFleet = integration.getEnhancedDroneFleet;
+          initializeAdminServices = integration.initializeAdminServices;
+        } catch (importError) {
+          console.warn("[AdminDashboard] Integration services not available, using standard services");
+        }
+        
+        // Load data with enhanced services if available, fallback to standard
         const restaurantsData = await getAllRestaurants();
         const customersData = await getAllCustomers();
-        const dronesData = await getDroneFleet();
+        const dronesData = getEnhancedDroneFleet ? await getEnhancedDroneFleet() : await getDroneFleet();
         const logsData = await getSystemLogs();
-        const statsData = await getAdminStats();
+        const statsData = getEnhancedAdminStats ? await getEnhancedAdminStats() : await getAdminStats();
         
-        // Validate and set data
-        setRestaurants(Array.isArray(restaurantsData) ? restaurantsData : []);
-        setCustomers(Array.isArray(customersData) ? customersData : []);
-        setDrones(Array.isArray(dronesData) ? dronesData : []);
-        setLogs(Array.isArray(logsData) ? logsData : []);
-        setStats(statsData || {});
+        // Only update state if component is still mounted
+        if (isMounted) {
+          // Validate and set data
+          setRestaurants(Array.isArray(restaurantsData) ? restaurantsData : []);
+          setCustomers(Array.isArray(customersData) ? customersData : []);
+          setDrones(Array.isArray(dronesData) ? dronesData : []);
+          setLogs(Array.isArray(logsData) ? logsData : []);
+          setStats(statsData || {});
+          
+          // Initialize background services if available
+          if (initializeAdminServices) {
+            cleanupServices = initializeAdminServices();
+          }
+        }
         
         console.log("[AdminDashboard] Data loaded successfully");
       } catch (error) {
         console.error("[AdminDashboard] Error loading data:", error);
         
-        // Fallback to mock data
-        setRestaurants([
-          { id: '1', name: 'Aloha Kitchen', status: 'Đang hoạt động', category: 'Asian Fusion', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 2 },
-          { id: '2', name: 'SweetDreams Bakery', status: 'Đang hoạt động', category: 'Bakery', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 3 }
-        ]);
-        setCustomers([]);
-        setDrones([]);
-        setLogs([]);
-        setStats({
-          totalRestaurants: 2,
-          totalCustomers: 0,
-          totalOrders: 0,
-          totalRevenue: 0,
-          totalDrones: 0,
-          activeRestaurants: 2,
-          activeDrones: 0,
-          pendingRestaurants: 0,
-          maintenanceDrones: 0
-        });
+        // Only update state if component is still mounted
+        if (isMounted) {
+          // Fallback to mock data
+          setRestaurants([
+            { id: '1', name: 'Aloha Kitchen', status: 'Đang hoạt động', category: 'Asian Fusion', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 2 },
+            { id: '2', name: 'SweetDreams Bakery', status: 'Đang hoạt động', category: 'Bakery', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 3 }
+          ]);
+          setCustomers([]);
+          setDrones([]);
+          setLogs([]);
+          setStats({
+            totalRestaurants: 2,
+            totalCustomers: 0,
+            totalOrders: 0,
+            totalRevenue: 0,
+            totalDrones: 0,
+            activeRestaurants: 2,
+            activeDrones: 0,
+            pendingRestaurants: 0,
+            maintenanceDrones: 0
+          });
+        }
       }
     };
     
     loadData();
+    
+    // Cleanup on unmount
+    return () => {
+      isMounted = false;
+      if (cleanupServices && typeof cleanupServices === 'function') {
+        cleanupServices();
+      }
+    };
   }, []);
 
   // Refresh data
-  const refreshData = () => {
+  const refreshData = async () => {
     try {
-      setRestaurants(getAllRestaurants());
-      setCustomers(getAllCustomers());
-      setDrones(getDroneFleet());
-      setLogs(getSystemLogs());
-      setStats(getAdminStats());
+      // Properly await async functions
+      const [restaurantsData, customersData, dronesData, logsData, statsData] = await Promise.all([
+        getAllRestaurants(),
+        getAllCustomers(),
+        getDroneFleet(),
+        getSystemLogs(),
+        getAdminStats()
+      ]);
+      
+      setRestaurants(Array.isArray(restaurantsData) ? restaurantsData : []);
+      setCustomers(Array.isArray(customersData) ? customersData : []);
+      setDrones(Array.isArray(dronesData) ? dronesData : []);
+      setLogs(Array.isArray(logsData) ? logsData : []);
+      setStats(statsData || {});
       setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error("[AdminDashboard] Error refreshing data:", error);
     }
   };
 
-  // Auto-refresh logs every 10 seconds
+  // Auto-refresh logs and stats every 10 seconds
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
+        // Refresh logs
         const logsData = await getSystemLogs();
         setLogs(Array.isArray(logsData) ? logsData : []);
+        
+        // Refresh stats (with realtime integration if available)
+        try {
+          const integration = await import('@/services/adminServiceIntegration');
+          const statsData = await integration.getEnhancedAdminStats();
+          setStats(statsData || {});
+        } catch {
+          // Fallback to regular stats
+          const statsData = await getAdminStats();
+          setStats(statsData || {});
+        }
       } catch (error) {
-        console.error("[AdminDashboard] Error refreshing logs:", error);
+        console.error("[AdminDashboard] Error refreshing data:", error);
       }
     }, 10000);
     return () => clearInterval(interval);
@@ -447,6 +508,7 @@ const AdminDashboard: React.FC = () => {
       case 'customers': return 'Quản lý khách hàng';
       case 'drones': return 'Giám sát đội máy bay';
       case 'logs': return 'Nhật ký hoạt động hệ thống';
+      case 'assistant': return 'AI Assistant';
       default: return 'Bảng điều khiển';
     }
   };
@@ -458,9 +520,27 @@ const AdminDashboard: React.FC = () => {
       case 'customers': return '👥';
       case 'drones': return '🚁';
       case 'logs': return '📋';
+      case 'assistant': return '🤖';
       default: return '📊';
     }
   };
+
+  // Update last update timestamp periodically
+  useEffect(() => {
+    const updateLastUpdate = () => {
+      try {
+        const timestamp = getLastUpdateTimestamp();
+        setLastUpdate(timestamp);
+      } catch (error) {
+        // Fallback to current time if service not available
+        setLastUpdate(new Date().toISOString());
+      }
+    };
+
+    updateLastUpdate();
+    const interval = setInterval(updateLastUpdate, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (!admin) {
     navigate('/admin/login');
@@ -484,6 +564,9 @@ const AdminDashboard: React.FC = () => {
           <PageTitle>
             <span>{getTabIcon()}</span>
             {getTabTitle()}
+            {activeTab !== 'assistant' && (
+              <RealtimeBadge lastUpdate={lastUpdate} />
+            )}
           </PageTitle>
           <ActionButtons>
             <Button onClick={refreshData}>🔄 Làm mới</Button>
@@ -694,6 +777,12 @@ const AdminDashboard: React.FC = () => {
               key={`logs-${refreshKey}`}
               logs={safeLogs} 
             />
+          </ContentArea>
+        )}
+
+        {activeTab === 'assistant' && (
+          <ContentArea>
+            <AssistantTab />
           </ContentArea>
         )}
 

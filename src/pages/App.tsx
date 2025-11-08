@@ -11,6 +11,8 @@ import VNPayReturn from './VNPayReturn';
 import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
 import OrderTracking from './OrderTracking';
+import OrderConfirmation from './OrderConfirmation';
+import OrderHistory from './OrderHistory';
 import Login from './Login';
 import RegisterPage from './RegisterPage';
 import RestaurantDashboard from './restaurant/RestaurantDashboard';
@@ -78,6 +80,16 @@ const App: React.FC = () => {
             <Route path="/checkout" element={
               <RoleGuardedRoute allowedRoles={['customer']}>
                 <Checkout />
+              </RoleGuardedRoute>
+            } />
+            <Route path="/order-confirmation" element={
+              <RoleGuardedRoute allowedRoles={['customer']}>
+                <OrderConfirmation />
+              </RoleGuardedRoute>
+            } />
+            <Route path="/order-history" element={
+              <RoleGuardedRoute allowedRoles={['customer']}>
+                <OrderHistory />
               </RoleGuardedRoute>
             } />
             <Route path="/vnpay-return" element={<VNPayReturn />} />

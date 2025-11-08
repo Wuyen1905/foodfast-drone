@@ -314,23 +314,24 @@ const Checkout: React.FC = () => {
             vnpayTransactionId: paymentResult.transactionId,
             dronePath: ["Nhà hàng", "Kho Drone", "Đang giao", "Hoàn tất"],
             restaurantId: restaurantId || undefined,
+            userId: user?.id || undefined,
             createdAt: Date.now(),
             updatedAt: Date.now(),
           };
           
-          addOrder(newOrder);
-          
-          // Notify restaurant about the new order
-          if (restaurantId) {
-            notifyRestaurant(newOrder).catch(err => {
-              console.error('Failed to notify restaurant:', err);
-              // Don't show error to user, order was still created successfully
-            });
-          }
-          
-          clear();
-          toast.success("Thanh toán VNPay thành công!");
-          navigate("/orders");
+        addOrder(newOrder);
+        
+        // Notify restaurant about the new order
+        if (restaurantId) {
+          notifyRestaurant(newOrder).catch(err => {
+            console.error('Failed to notify restaurant:', err);
+            // Don't show error to user, order was still created successfully
+          });
+        }
+        
+        clear();
+        toast.success("Thanh toán VNPay thành công!");
+        navigate(`/order-confirmation?orderId=${orderId}`);
         } else {
           toast.error(paymentResult.message);
         }
@@ -356,6 +357,7 @@ const Checkout: React.FC = () => {
           paymentStatus: form.payment === 'cod' ? 'Đang chờ phê duyệt' : 'completed',
           dronePath: ["Nhà hàng", "Kho Drone", "Đang giao", "Hoàn tất"],
           restaurantId: restaurantId || undefined,
+          userId: user?.id || undefined,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -372,7 +374,7 @@ const Checkout: React.FC = () => {
         
         clear();
         toast.success("Bạn đã đặt hàng thành công!");
-        navigate("/orders");
+        navigate(`/order-confirmation?orderId=${orderId}`);
       }
     } catch (error) {
       toast.error("Có lỗi xảy ra khi đặt hàng!");

@@ -15,6 +15,7 @@ export type Order = {
   paymentStatus?: 'Đang chờ phê duyệt' | 'completed' | 'failed';
   vnpayTransactionId?: string;
   restaurantId?: string;
+  userId?: string; // User ID for logged-in customers
   createdAt?: number;
   updatedAt?: number;
   confirmedAt?: number;
@@ -27,6 +28,7 @@ type OrderContextType = {
   orders: Order[];
   addOrder: (order: Order) => void;
   getOrdersByPhone: (phone: string) => Order[];
+  getOrdersByUserId: (userId: string) => Order[];
   getOrdersByRestaurantId: (restaurantId: string) => Order[];
   updateOrderStatus: (id: string, status: OrderStatus) => void;
   updateOrderPaymentStatus: (id: string, paymentStatus: 'Đang chờ phê duyệt' | 'completed' | 'failed', transactionId?: string) => void;
@@ -58,6 +60,10 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
 
   const getOrdersByPhone = (phone: string) => {
     return orders.filter((o) => o.phone === phone);
+  };
+
+  const getOrdersByUserId = (userId: string) => {
+    return orders.filter((o) => o.userId === userId);
   };
 
   const getOrdersByRestaurantId = (restaurantId: string) => {
@@ -113,7 +119,8 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     <OrderContext.Provider value={{ 
       orders, 
       addOrder, 
-      getOrdersByPhone, 
+      getOrdersByPhone,
+      getOrdersByUserId,
       getOrdersByRestaurantId,
       updateOrderStatus, 
       updateOrderPaymentStatus,

@@ -1,0 +1,429 @@
+/**
+ * Order Confirmation Page
+ * Displays order details after successful checkout
+ */
+
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import { useOrders } from '@/context/OrderContext';
+import { formatVND } from '@/utils/currency';
+import dayjs from 'dayjs';
+import { getRestaurantById } from '@/services/adminService';
+import type { Order } from '@/context/OrderContext';
+
+const Container = styled.div`
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+`;
+
+const ConfirmationCard = styled(motion.div)`
+  background: var(--card);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+  margin-bottom: 24px;
+`;
+
+const SuccessIcon = styled.div`
+  text-align: center;
+  font-size: 64px;
+  margin-bottom: 16px;
+`;
+
+const ThankYouMessage = styled.h2`
+  text-align: center;
+  color: var(--text);
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+`;
+
+const SubMessage = styled.p`
+  text-align: center;
+  color: var(--secondaryText);
+  font-size: 16px;
+  margin: 0 0 32px 0;
+`;
+
+const Section = styled.div`
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+`;
+
+const SectionTitle = styled.h3`
+  margin: 0 0 16px 0;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+`;
+
+const InfoRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const InfoLabel = styled.span`
+  color: var(--secondaryText);
+  font-weight: 500;
+`;
+
+const InfoValue = styled.span<{ $highlight?: boolean }>`
+  color: ${props => props.$highlight ? 'var(--primary)' : 'var(--text)'};
+  font-weight: ${props => props.$highlight ? '700' : '400'};
+`;
+
+const ItemsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const ItemRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: var(--background);
+  border-radius: 8px;
+`;
+
+const ItemInfo = styled.div`
+  flex: 1;
+`;
+
+const ItemName = styled.div`
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+`;
+
+const ItemDetails = styled.div`
+  font-size: 14px;
+  color: var(--secondaryText);
+`;
+
+const ItemTotal = styled.div`
+  font-weight: 600;
+  color: var(--text);
+`;
+
+const StatusBadge = styled.span<{ $status: string }>`
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  
+  ${props => {
+    switch (props.$status.toLowerCase()) {
+      case 'pending':
+      case 'đang chờ phê duyệt':
+        return 'background: #ff9800; color: white;';
+      case 'confirmed':
+      case 'đã xác nhận':
+        return 'background: #2196f3; color: white;';
+      case 'in progress':
+      case 'đang xử lý':
+        return 'background: #2196f3; color: white;';
+      case 'delivered':
+      case 'đã giao hàng':
+        return 'background: #4caf50; color: white;';
+      case 'cancelled':
+        return 'background: #f44336; color: white;';
+      default:
+        return 'background: #9e9e9e; color: white;';
+    }
+  }}
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 16px;
+  margin-top: 32px;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+`;
+
+const Button = styled(motion.button)<{ $variant?: 'primary' | 'secondary' }>`
+  flex: 1;
+  padding: 16px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  ${props => {
+    if (props.$variant === 'primary') {
+      return `
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        color: white;
+        box-shadow: var(--shadow);
+        
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-md);
+        }
+      `;
+    } else {
+      return `
+        background: var(--card);
+        color: var(--text);
+        border: 2px solid var(--border);
+        
+        &:hover {
+          border-color: var(--primary);
+          background: var(--background);
+        }
+      `;
+    }
+  }}
+`;
+
+const LoadingState = styled.div`
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--secondaryText);
+`;
+
+const ErrorState = styled.div`
+  text-align: center;
+  padding: 60px 20px;
+  color: #f44336;
+`;
+
+const OrderConfirmation: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { orders } = useOrders();
+  const [order, setOrder] = useState<Order | null>(null);
+  const [restaurantName, setRestaurantName] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  const orderId = searchParams.get('orderId');
+
+  useEffect(() => {
+    const loadOrder = async () => {
+      if (!orderId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Find order by ID
+        const foundOrder = orders.find(o => o.id === orderId);
+        
+        if (!foundOrder) {
+          setLoading(false);
+          return;
+        }
+
+        setOrder(foundOrder);
+
+        // Get restaurant name if restaurantId exists
+        if (foundOrder.restaurantId) {
+          try {
+            const restaurant = await getRestaurantById(foundOrder.restaurantId);
+            if (restaurant) {
+              setRestaurantName(restaurant.name);
+            }
+          } catch (error) {
+            console.error('Error fetching restaurant:', error);
+          }
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading order:', error);
+        setLoading(false);
+      }
+    };
+
+    loadOrder();
+  }, [orderId, orders]);
+
+  const getStatusText = (status: string): string => {
+    const statusMap: Record<string, string> = {
+      'Pending': 'Đang chờ phê duyệt',
+      'Confirmed': 'Đã xác nhận',
+      'In Progress': 'Đang xử lý',
+      'Ready': 'Sẵn sàng',
+      'Delivered': 'Đã giao hàng',
+      'Cancelled': 'Đã hủy'
+    };
+    return statusMap[status] || status;
+  };
+
+  const getPaymentMethodText = (method?: string): string => {
+    const methodMap: Record<string, string> = {
+      'cod': 'Thanh toán khi nhận hàng',
+      'vnpay': 'VNPay',
+      'visa': 'Visa',
+      'momo': 'MoMo',
+      'zalopay': 'ZaloPay'
+    };
+    return methodMap[method || 'cod'] || method || 'Thanh toán khi nhận hàng';
+  };
+
+  if (loading) {
+    return (
+      <Container>
+        <LoadingState>Đang tải thông tin đơn hàng...</LoadingState>
+      </Container>
+    );
+  }
+
+  if (!order) {
+    return (
+      <Container>
+        <ErrorState>
+          <p>Không tìm thấy đơn hàng.</p>
+          <Button
+            $variant="primary"
+            onClick={() => navigate('/menu')}
+            style={{ marginTop: '16px' }}
+          >
+            Về Trang Chủ
+          </Button>
+        </ErrorState>
+      </Container>
+    );
+  }
+
+  return (
+    <Container>
+      <ConfirmationCard
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <SuccessIcon>✅</SuccessIcon>
+        <ThankYouMessage>Đặt hàng thành công!</ThankYouMessage>
+        <SubMessage>Cảm ơn bạn đã đặt hàng tại FoodFast!</SubMessage>
+
+        <Section>
+          <SectionTitle>Thông tin đơn hàng</SectionTitle>
+          <InfoRow>
+            <InfoLabel>Mã đơn hàng:</InfoLabel>
+            <InfoValue $highlight>#{order.id}</InfoValue>
+          </InfoRow>
+          <InfoRow>
+            <InfoLabel>Nhà hàng:</InfoLabel>
+            <InfoValue>{restaurantName || order.restaurantId || 'N/A'}</InfoValue>
+          </InfoRow>
+          <InfoRow>
+            <InfoLabel>Trạng thái:</InfoLabel>
+            <StatusBadge $status={order.status}>
+              {getStatusText(order.status)}
+            </StatusBadge>
+          </InfoRow>
+          <InfoRow>
+            <InfoLabel>Thời gian đặt hàng:</InfoLabel>
+            <InfoValue>
+              {order.createdAt 
+                ? dayjs(order.createdAt).format('DD/MM/YYYY HH:mm')
+                : 'N/A'}
+            </InfoValue>
+          </InfoRow>
+        </Section>
+
+        <Section>
+          <SectionTitle>Thông tin khách hàng</SectionTitle>
+          <InfoRow>
+            <InfoLabel>Họ tên:</InfoLabel>
+            <InfoValue>{order.name}</InfoValue>
+          </InfoRow>
+          <InfoRow>
+            <InfoLabel>Số điện thoại:</InfoLabel>
+            <InfoValue>{order.phone}</InfoValue>
+          </InfoRow>
+          <InfoRow>
+            <InfoLabel>Địa chỉ giao hàng:</InfoLabel>
+            <InfoValue>{order.address}</InfoValue>
+          </InfoRow>
+        </Section>
+
+        <Section>
+          <SectionTitle>Chi tiết đơn hàng</SectionTitle>
+          <ItemsList>
+            {order.items.map((item, index) => (
+              <ItemRow key={index}>
+                <ItemInfo>
+                  <ItemName>{item.name}</ItemName>
+                  <ItemDetails>
+                    Số lượng: {item.qty} × {formatVND(item.price)}
+                  </ItemDetails>
+                </ItemInfo>
+                <ItemTotal>{formatVND(item.qty * item.price)}</ItemTotal>
+              </ItemRow>
+            ))}
+          </ItemsList>
+        </Section>
+
+        <Section>
+          <SectionTitle>Thanh toán</SectionTitle>
+          <InfoRow>
+            <InfoLabel>Phương thức thanh toán:</InfoLabel>
+            <InfoValue>{getPaymentMethodText(order.paymentMethod)}</InfoValue>
+          </InfoRow>
+          <InfoRow>
+            <InfoLabel>Tổng tiền:</InfoLabel>
+            <InfoValue $highlight>{formatVND(order.total)}</InfoValue>
+          </InfoRow>
+          {order.paymentStatus && (
+            <InfoRow>
+              <InfoLabel>Trạng thái thanh toán:</InfoLabel>
+              <InfoValue>
+                {order.paymentStatus === 'completed' ? 'Đã thanh toán' : 
+                 order.paymentStatus === 'Đang chờ phê duyệt' ? 'Đang chờ phê duyệt' :
+                 'Chưa thanh toán'}
+              </InfoValue>
+            </InfoRow>
+          )}
+        </Section>
+
+        <ButtonGroup>
+          <Button
+            $variant="secondary"
+            onClick={() => navigate('/menu')}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            Về Trang Chủ
+          </Button>
+          <Button
+            $variant="primary"
+            onClick={() => navigate('/order-history')}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            Xem Lịch Sử Đơn Hàng
+          </Button>
+        </ButtonGroup>
+      </ConfirmationCard>
+    </Container>
+  );
+};
+
+export default OrderConfirmation;
+
