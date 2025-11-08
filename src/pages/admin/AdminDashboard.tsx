@@ -361,9 +361,13 @@ const AdminDashboard: React.FC = () => {
         // Load data with enhanced services if available, fallback to standard
         const restaurantsData = await getAllRestaurants();
         const customersData = await getAllCustomers();
-        const dronesData = getEnhancedDroneFleet ? await getEnhancedDroneFleet() : await getDroneFleet();
+        const dronesFleetData = getEnhancedDroneFleet ? await getEnhancedDroneFleet() : await getDroneFleet();
         const logsData = await getSystemLogs();
         const statsData = getEnhancedAdminStats ? await getEnhancedAdminStats() : await getAdminStats();
+        
+        // Transform DroneFleet to AdminDrone format
+        const { transformToAdminDrones } = await import('@/services/droneTransformService');
+        const dronesData = transformToAdminDrones(Array.isArray(dronesFleetData) ? dronesFleetData : []);
         
         // Only update state if component is still mounted
         if (isMounted) {

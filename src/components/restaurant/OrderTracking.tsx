@@ -618,9 +618,6 @@ const OrderTracking: React.FC<OrderTrackingProps> = ({ restaurantId, theme }) =>
                         {getNextStatuses(order.status as OrderStatus).map(status => (
                           <option key={status} value={status}>{getStatusLabel(status)}</option>
                         ))}
-                        {order.status !== 'Cancelled' && order.status !== 'Đã hủy' && (
-                          <option value="Cancelled">Đã hủy</option>
-                        )}
                       </StatusSelect>
                     </>
                   )}

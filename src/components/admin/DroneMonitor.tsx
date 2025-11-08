@@ -1,14 +1,35 @@
 /**
  * Drone Monitor Component
  * Read-only monitoring of all drones grouped by restaurant ownership
+ * Enhanced with real-time tracking, alerts, and emergency controls
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminDrone, AdminRestaurant } from '../../types/admin';
 import { flagDrone, clearDroneFlag, reassignDrone, getAllRestaurants } from '../../services/adminService';
 import { useAdminAuth } from '../../context/AdminAuthContext';
+import { 
+  fetchRealtimeDroneData, 
+  subscribeToRealtimeUpdates, 
+  startRealtimePolling, 
+  stopRealtimePolling,
+  getLastUpdateTimestamp,
+  type DroneRealtimeData 
+} from '../../services/droneRealtimeService';
+import { 
+  subscribeToAlerts, 
+  startAlertMonitoring, 
+  getDroneAlerts,
+  type DroneAlert 
+} from '../../services/droneAlertService';
+import { recallDrone } from '../../services/droneEmergencyService';
+import DroneSummaryBar from './DroneSummaryBar';
+import DroneDetailModal from './DroneDetailModal';
+import { getRestaurantById } from '../../services/adminService';
+import toast from 'react-hot-toast';
+import { mockDrones } from '../../data/mockDrones';
 
 const Container = styled.div`
   background: white;
@@ -316,6 +337,75 @@ const EmptyState = styled.div`
   color: #999;
 `;
 
+const AlertIndicator = styled.div<{ $severity: string }>`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: ${props => {
+    switch (props.$severity) {
+      case 'high': return '#dc3545';
+      case 'medium': return '#ffc107';
+      case 'low': return '#28a745';
+      default: return '#6c757d';
+    }
+  }};
+  border: 2px solid white;
+  box-shadow: 0 0 0 2px ${props => {
+    switch (props.$severity) {
+      case 'high': return '#dc3545';
+      case 'medium': return '#ffc107';
+      case 'low': return '#28a745';
+      default: return '#6c757d';
+    }
+  }};
+  animation: ${props => props.$severity === 'high' ? 'pulse 2s infinite' : 'none'};
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+`;
+
+const RealtimeIndicator = styled.div`
+  font-size: 12px;
+  color: #666;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const ConnectionStatus = styled.span<{ $status: string }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: ${props => {
+      switch (props.$status) {
+        case 'online': return '#28a745';
+        case 'lost_signal': return '#ffc107';
+        case 'disconnected': return '#dc3545';
+        default: return '#6c757d';
+      }
+    }};
+  }
+`;
+
+const EmergencyButton = styled(ActionButton)`
+  background: #dc3545 !important;
+  flex: 1;
+`;
+
 interface DroneMonitorProps {
   drones: AdminDrone[];
   onUpdate: () => void;
@@ -324,13 +414,93 @@ interface DroneMonitorProps {
 const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
   const { admin } = useAdminAuth();
   const [statusFilter, setStatusFilter] = useState<'All' | 'Idle' | 'Delivering' | 'Charging' | 'Maintenance'>('All');
-  const [modalData, setModalData] = useState<{ drone: AdminDrone; action: 'flag' | 'clear' | 'reassign' } | null>(null);
+  const [modalData, setModalData] = useState<{ drone: AdminDrone; action: 'flag' | 'clear' | 'reassign' | 'recall' | 'detail' } | null>(null);
   const [issueDescription, setIssueDescription] = useState('');
   const [selectedRestaurantId, setSelectedRestaurantId] = useState('');
   const [restaurants, setRestaurants] = useState<AdminRestaurant[]>(getAllRestaurants());
+  
+  // Enhanced real-time data
+  const [realtimeDrones, setRealtimeDrones] = useState<DroneRealtimeData[]>([]);
+  const [alerts, setAlerts] = useState<DroneAlert[]>([]);
+  const [selectedDrone, setSelectedDrone] = useState<DroneRealtimeData | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string>(new Date().toISOString());
+
+  // Initialize real-time services
+  useEffect(() => {
+    // Start real-time polling
+    startRealtimePolling(3000);
+
+    // Subscribe to real-time updates
+    const unsubscribeRealtime = subscribeToRealtimeUpdates((updatedDrones) => {
+      setRealtimeDrones(updatedDrones);
+      setLastUpdate(getLastUpdateTimestamp());
+    });
+
+    // Subscribe to alerts
+    const unsubscribeAlerts = subscribeToAlerts((updatedAlerts) => {
+      setAlerts(updatedAlerts);
+    });
+
+    // Initial fetch
+    fetchRealtimeDroneData().then(setRealtimeDrones);
+
+    return () => {
+      stopRealtimePolling();
+      unsubscribeRealtime();
+      unsubscribeAlerts();
+    };
+  }, []);
+
+  // Start alert monitoring after realtime drones are loaded
+  useEffect(() => {
+    if (realtimeDrones.length > 0) {
+      const stopAlertMonitoring = startAlertMonitoring(() => realtimeDrones);
+      return stopAlertMonitoring;
+    }
+  }, [realtimeDrones]);
+
+  // Merge real-time data with AdminDrone data (only if we have real drones)
+  const enhancedDrones: (AdminDrone & Partial<DroneRealtimeData>)[] = drones.length > 0 ? drones.map(drone => {
+    const realtime = realtimeDrones.find(rd => rd.id === drone.id);
+    
+    // Map realtime status to AdminDrone status format
+    let mappedStatus: AdminDrone['status'] = drone.status;
+    if (realtime) {
+      if (realtime.status === 'delivering') mappedStatus = 'Delivering';
+      else if (realtime.status === 'returning') mappedStatus = 'Charging';
+      else if (realtime.status === 'maintenance') mappedStatus = 'Maintenance';
+      else if (realtime.status === 'offline') mappedStatus = 'Idle';
+      else if (realtime.status === 'active' && !realtime.orderId) mappedStatus = 'Idle';
+    }
+    
+    return {
+      ...drone,
+      // Override with realtime data
+      battery: realtime?.battery ?? drone.battery,
+      status: mappedStatus,
+      currentOrderId: realtime?.orderId || drone.currentOrderId,
+      // Add realtime fields
+      ...(realtime && {
+        position: realtime.position,
+        speed: realtime.speed,
+        connectionStatus: realtime.connectionStatus,
+        eta: realtime.eta
+      })
+    };
+  }) : [];
+
+  // Use mock drones if no real drones exist, otherwise use enhanced drones
+  const dronesToDisplay = enhancedDrones.length > 0 ? enhancedDrones : mockDrones.map(d => ({
+    ...d,
+    position: undefined,
+    speed: undefined,
+    connectionStatus: undefined,
+    eta: undefined
+  }));
 
   // Group drones by restaurant
-  const groupedDrones = drones.reduce((acc, drone) => {
+  const groupedDrones = dronesToDisplay.reduce((acc, drone) => {
     if (!acc[drone.restaurantId]) {
       acc[drone.restaurantId] = {
         restaurantName: drone.restaurantName,
@@ -339,25 +509,87 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
     }
     acc[drone.restaurantId].drones.push(drone);
     return acc;
-  }, {} as Record<string, { restaurantName: string; drones: AdminDrone[] }>);
+  }, {} as Record<string, { restaurantName: string; drones: (AdminDrone & Partial<DroneRealtimeData>)[] }>);
 
-  const filteredDrones = (restaurantDrones: AdminDrone[]) => {
+  const filteredDrones = (restaurantDrones: (AdminDrone & Partial<DroneRealtimeData>)[]) => {
     return restaurantDrones.filter(drone => 
       statusFilter === 'All' || drone.status === statusFilter
     );
   };
 
-  const openModal = (drone: AdminDrone, action: 'flag' | 'clear' | 'reassign') => {
+  const openModal = (drone: AdminDrone, action: 'flag' | 'clear' | 'reassign' | 'recall' | 'detail') => {
     setModalData({ drone, action });
     setIssueDescription(drone.issueDescription || '');
     setSelectedRestaurantId('');
     setRestaurants(getAllRestaurants());
+    
+    // For detail modal, find real-time data
+    if (action === 'detail') {
+      const realtime = realtimeDrones.find(rd => rd.id === drone.id);
+      if (realtime) {
+        setSelectedDrone(realtime);
+        setDetailModalOpen(true);
+      }
+    }
   };
 
   const closeModal = () => {
     setModalData(null);
     setIssueDescription('');
     setSelectedRestaurantId('');
+    setDetailModalOpen(false);
+    setSelectedDrone(null);
+  };
+
+  const handleRecallDrone = async () => {
+    if (!modalData || !admin) return;
+    
+    const success = await recallDrone(
+      modalData.drone.id,
+      admin.id,
+      admin.name
+    );
+    
+    if (success) {
+      toast.success(`Đã gọi drone ${modalData.drone.id} về trạm sạc`);
+      onUpdate();
+      closeModal();
+    } else {
+      toast.error('Không thể gọi drone về trạm');
+    }
+  };
+
+  const handleDroneClick = (drone: AdminDrone & Partial<DroneRealtimeData>, mockRealtime?: DroneRealtimeData) => {
+    // Use provided mockRealtime if available, otherwise try to find in realtimeDrones
+    const realtime = mockRealtime || realtimeDrones.find(rd => rd.id === drone.id);
+    if (realtime) {
+      setSelectedDrone(realtime);
+      setDetailModalOpen(true);
+    } else if (enhancedDrones.length === 0) {
+      // For mock drones without realtime data, create it on the fly
+      const mockData: DroneRealtimeData = {
+        id: drone.id,
+        code: drone.id,
+        battery: drone.battery,
+        status: drone.status === 'Delivering' ? 'delivering' as const :
+                drone.status === 'Charging' ? 'charging' as const :
+                'active' as const,
+        restaurantId: drone.restaurantId,
+        orderId: drone.currentOrderId,
+        missionsCompleted: 0,
+        lastMaintenance: new Date(drone.lastMaintenance).toISOString(),
+        position: {
+          lat: 10.7769,
+          lng: 106.7009
+        },
+        speed: drone.status === 'Delivering' ? 20.5 : 0,
+        connectionStatus: 'online' as const,
+        eta: drone.status === 'Delivering' ? 12 : undefined,
+        lastUpdate: new Date().toISOString()
+      };
+      setSelectedDrone(mockData);
+      setDetailModalOpen(true);
+    }
   };
 
   const handleFlagDrone = () => {
@@ -407,19 +639,43 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
     return `${days} days ago`;
   };
 
-  const totalDrones = drones.length;
+  // Use mock drones if no real drones exist
+  const displayDrones = enhancedDrones.length > 0 ? enhancedDrones : mockDrones;
+  
+  const totalDrones = displayDrones.length;
   const statusCounts = {
-    Idle: drones.filter(d => d.status === 'Idle').length,
-    Delivering: drones.filter(d => d.status === 'Delivering').length,
-    Charging: drones.filter(d => d.status === 'Charging').length,
-    Maintenance: drones.filter(d => d.status === 'Maintenance').length
+    Idle: displayDrones.filter(d => d.status === 'Idle').length,
+    Delivering: displayDrones.filter(d => d.status === 'Delivering').length,
+    Charging: displayDrones.filter(d => d.status === 'Charging').length,
+    Maintenance: displayDrones.filter(d => d.status === 'Maintenance').length
   };
+
+  // Get restaurant name for detail modal
+  const [restaurantName, setRestaurantName] = useState<string>('');
+  useEffect(() => {
+    if (selectedDrone?.restaurantId) {
+      getRestaurantById(selectedDrone.restaurantId).then(restaurant => {
+        if (restaurant) {
+          setRestaurantName(restaurant.name);
+        }
+      });
+    }
+  }, [selectedDrone]);
 
   return (
     <Container>
       <Header>
-        <Title>Giám sát drone</Title>
+        <div>
+          <Title>Giám sát drone</Title>
+          <RealtimeIndicator>
+            <span>•</span>
+            Cập nhật {Math.round((Date.now() - new Date(lastUpdate).getTime()) / 1000)}s trước
+          </RealtimeIndicator>
+        </div>
       </Header>
+
+      {/* Fleet Summary Bar - Only show if we have real drones */}
+      {enhancedDrones.length > 0 && <DroneSummaryBar drones={realtimeDrones} />}
       
       <FilterGroup>
         <FilterButton 
@@ -459,11 +715,14 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
           const filtered = filteredDrones(restaurantDrones);
           if (filtered.length === 0) return null;
           
+          // Check if this is mock data (when no real drones exist)
+          const isMockData = enhancedDrones.length === 0;
+          
           return (
             <RestaurantSection key={restaurantId}>
               <RestaurantHeader>
                 <RestaurantName>
-                  🏪 {restaurantName}
+                  🏪 {restaurantName} {isMockData && '(Demo)'}
                 </RestaurantName>
                 <DroneCount>
                   {filtered.length} / {restaurantDrones.length} máy bay
@@ -471,15 +730,48 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
               </RestaurantHeader>
               
               <DroneGrid>
-                {filtered.map((drone, index) => (
+                {filtered.map((drone, index) => {
+                  // For mock drones, create mock realtime data
+                  let realtime = realtimeDrones.find(rd => rd.id === drone.id);
+                  if (isMockData && !realtime) {
+                    realtime = {
+                      id: drone.id,
+                      code: drone.id,
+                      battery: drone.battery,
+                      status: drone.status === 'Delivering' ? 'delivering' as const :
+                              drone.status === 'Charging' ? 'charging' as const :
+                              'active' as const,
+                      restaurantId: drone.restaurantId,
+                      orderId: drone.currentOrderId,
+                      missionsCompleted: 0,
+                      lastMaintenance: new Date(drone.lastMaintenance).toISOString(),
+                      position: {
+                        lat: 10.7769 + (index * 0.001),
+                        lng: 106.7009 + (index * 0.001)
+                      },
+                      speed: drone.status === 'Delivering' ? 20.5 : 0,
+                      connectionStatus: 'online' as const,
+                      eta: drone.status === 'Delivering' ? 12 : undefined,
+                      lastUpdate: new Date().toISOString()
+                    } as DroneRealtimeData;
+                  }
+                  
+                  const droneAlerts = getDroneAlerts(drone.id);
+                  const hasAlert = droneAlerts.length > 0;
+                  const alertSeverity = hasAlert ? droneAlerts[0].severity : undefined;
+                  
+                  return (
                   <DroneCard
                     key={drone.id}
                     $flagged={drone.flaggedForIssue}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: index * 0.05 }}
+                    style={{ position: 'relative', cursor: 'pointer' }}
+                    onClick={() => handleDroneClick(drone, realtime)}
                   >
                     {drone.flaggedForIssue && <FlagIcon>🚩</FlagIcon>}
+                    {hasAlert && <AlertIndicator $severity={alertSeverity || 'medium'} />}
                     
                     <DroneHeader>
                       <DroneId>{drone.id}</DroneId>
@@ -497,10 +789,44 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
                         <BatteryFill $level={drone.battery} />
                       </BatteryBar>
                       
-                      {drone.currentOrderId && (
+                      {realtime?.position && (
+                        <InfoRow style={{ marginTop: '12px' }}>
+                          <InfoLabel>Vị trí GPS:</InfoLabel>
+                          <InfoValue style={{ fontSize: '11px' }}>
+                            {realtime.position.lat.toFixed(4)}, {realtime.position.lng.toFixed(4)}
+                          </InfoValue>
+                        </InfoRow>
+                      )}
+                      
+                      {realtime?.speed !== undefined && realtime.speed > 0 && (
+                        <InfoRow>
+                          <InfoLabel>Tốc độ:</InfoLabel>
+                          <InfoValue>{realtime.speed} km/h</InfoValue>
+                        </InfoRow>
+                      )}
+                      
+                      {realtime?.connectionStatus && (
+                        <InfoRow>
+                          <InfoLabel>Kết nối:</InfoLabel>
+                          <ConnectionStatus $status={realtime.connectionStatus}>
+                            {realtime.connectionStatus === 'online' ? 'Trực tuyến' : 
+                             realtime.connectionStatus === 'lost_signal' ? 'Mất tín hiệu' : 
+                             'Ngắt kết nối'}
+                          </ConnectionStatus>
+                        </InfoRow>
+                      )}
+                      
+                      {(drone.currentOrderId || realtime?.orderId) && (
                         <InfoRow style={{ marginTop: '12px' }}>
                           <InfoLabel>Đơn hàng hiện tại:</InfoLabel>
-                          <InfoValue>{drone.currentOrderId}</InfoValue>
+                          <InfoValue>{realtime?.orderId || drone.currentOrderId}</InfoValue>
+                        </InfoRow>
+                      )}
+                      
+                      {realtime?.eta !== undefined && (drone.status === 'Delivering' || realtime?.status === 'delivering') && (
+                        <InfoRow>
+                          <InfoLabel>Thời gian ước tính đến nơi:</InfoLabel>
+                          <InfoValue>{realtime.eta} phút</InfoValue>
                         </InfoRow>
                       )}
                       
@@ -510,13 +836,19 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
                       </InfoRow>
                     </DroneInfo>
                     
+                    {hasAlert && (
+                      <IssueDescription style={{ marginTop: '10px', background: alertSeverity === 'high' ? '#ffebee' : '#fff3cd' }}>
+                        <strong>⚠️ Cảnh báo:</strong> {droneAlerts[0].message}
+                      </IssueDescription>
+                    )}
+                    
                     {drone.flaggedForIssue && drone.issueDescription && (
                       <IssueDescription>
                         <strong>⚠️ Issue:</strong> {drone.issueDescription}
                       </IssueDescription>
                     )}
                     
-                    <ActionButtons>
+                    <ActionButtons onClick={(e) => e.stopPropagation()}>
                       {drone.flaggedForIssue ? (
                         <ActionButton
                           $variant="clear"
@@ -541,11 +873,19 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
                               🔄 Phân công lại
                             </ActionButton>
                           )}
+                          {(drone.status === 'Delivering' || realtime?.status === 'delivering') && (
+                            <EmergencyButton
+                              onClick={() => openModal(drone, 'recall')}
+                            >
+                              ⚠️ Can thiệp khẩn cấp
+                            </EmergencyButton>
+                          )}
                         </>
                       )}
                     </ActionButtons>
                   </DroneCard>
-                ))}
+                  );
+                })}
               </DroneGrid>
             </RestaurantSection>
           );
@@ -645,6 +985,26 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
                     </ModalButton>
                   </ModalActions>
                 </>
+              ) : modalData.action === 'recall' ? (
+                <>
+                  <ModalTitle>⚠️ Can thiệp khẩn cấp</ModalTitle>
+                  <ModalText>
+                    Bạn có muốn gọi drone <strong>{modalData.drone.id}</strong> về trạm sạc không?
+                    <span style={{ display: 'block', marginTop: '10px', color: '#dc3545' }}>
+                      ⚠️ Drone sẽ dừng giao hàng hiện tại và trở về trạm sạc.
+                    </span>
+                  </ModalText>
+                  <ModalActions>
+                    <ModalButton onClick={closeModal}>Hủy</ModalButton>
+                    <ModalButton 
+                      $primary 
+                      onClick={handleRecallDrone}
+                      style={{ background: '#dc3545' }}
+                    >
+                      Xác nhận
+                    </ModalButton>
+                  </ModalActions>
+                </>
               ) : (
                 <>
                   <ModalTitle>Xóa cờ máy bay</ModalTitle>
@@ -666,6 +1026,14 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
           </Modal>
         )}
       </AnimatePresence>
+
+      {/* Drone Detail Modal */}
+      <DroneDetailModal
+        drone={selectedDrone}
+        isOpen={detailModalOpen}
+        onClose={closeModal}
+        restaurantName={restaurantName}
+      />
     </Container>
   );
 };
