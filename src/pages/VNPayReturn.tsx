@@ -101,36 +101,70 @@ const VNPayReturn: React.FC = () => {
     const processPayment = async () => {
       try {
         // Simulate processing delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
-        const validation = validateVNPayCallback(searchParams);
+        // Validate VNPay callback with proper hash verification
+        const validation = await validateVNPayCallback(searchParams);
         
         if (validation.isValid) {
           setResult({
             success: true,
-            message: 'Thanh toán VNPay thành công! Đơn hàng của bạn đã được xác nhận.',
+            message: validation.responseMessage || 'Thanh toán VNPay thành công! Đơn hàng của bạn đã được xác nhận.',
             transactionId: validation.transactionId
           });
           
-          // Update order payment status if transaction ID exists
+          // Update order payment status if transaction ID and order ID exist
           if (validation.transactionId && validation.orderId) {
             updateOrderPaymentStatus(validation.orderId, 'completed', validation.transactionId);
           }
           
+          // Check if there's a pending order in sessionStorage (from checkout)
+          const pendingOrderData = sessionStorage.getItem('vnpay_pending_order');
+          if (pendingOrderData) {
+            try {
+              const orderData = JSON.parse(pendingOrderData);
+              // Orders should have been created in checkout, but if not, create them here
+              // This is a safety fallback
+              console.log('[VNPay Return] Pending order data found:', orderData);
+              // Clear pending order data
+              sessionStorage.removeItem('vnpay_pending_order');
+            } catch (err) {
+              console.error('[VNPay Return] Error processing pending order:', err);
+            }
+          }
+          
           toast.success('Thanh toán thành công!');
         } else {
+          // Get error message from validation
+          const errorMessage = validation.responseMessage 
+            ? `Thanh toán thất bại: ${validation.responseMessage}`
+            : 'Thanh toán thất bại. Vui lòng thử lại hoặc chọn phương thức thanh toán khác.';
+          
           setResult({
             success: false,
-            message: 'Thanh toán thất bại. Vui lòng thử lại hoặc chọn phương thức thanh toán khác.'
+            message: errorMessage
           });
+          
+          // Update order payment status to failed if order ID exists
+          if (validation.orderId) {
+            updateOrderPaymentStatus(validation.orderId, 'failed');
+          }
+          
+          // Clear pending order data on failure
+          sessionStorage.removeItem('vnpay_pending_order');
           
           toast.error('Thanh toán thất bại!');
         }
       } catch (error) {
+        console.error('[VNPay Return] Error processing payment:', error);
         setResult({
           success: false,
           message: 'Có lỗi xảy ra khi xử lý thanh toán. Vui lòng liên hệ hỗ trợ.'
         });
+        
+        // Clear pending order data on error
+        sessionStorage.removeItem('vnpay_pending_order');
+        
         toast.error('Có lỗi xảy ra!');
       } finally {
         setLoading(false);

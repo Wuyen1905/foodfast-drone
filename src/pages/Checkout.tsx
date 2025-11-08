@@ -9,7 +9,8 @@ import styled from "styled-components";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { checkoutSchema, CheckoutFormData } from "../schemas/checkoutSchema";
-import { notifyRestaurant, determineRestaurantFromCartItems } from "../services/restaurantNotificationService";
+import { notifyRestaurant } from "../services/restaurantNotificationService";
+import { splitOrdersByRestaurant, createOrdersFromSplit } from "../services/orderSplittingService";
 
 // Styled Components
 const CheckoutContainer = styled.div`
@@ -206,7 +207,7 @@ const VNPayQRCode = styled.div`
 
 const Checkout: React.FC = () => {
   const { user } = useAuth();
-  const { addOrder, getOrdersByPhone } = useOrders();
+  const { addOrders, getOrdersByPhone } = useOrders();
   const { items, clear, subtotal } = useCart();
   const navigate = useNavigate();
   
@@ -225,10 +226,11 @@ const Checkout: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showVNPayModal, setShowVNPayModal] = useState(false);
 
-  // Calculate totals
-  const delivery = 25000; // 25k VND
+  // Calculate totals (will be recalculated per restaurant in order splitting)
+  // These are used for display only - actual totals are calculated per restaurant order
+  const delivery = 25000; // 25k VND per order
   const tax = subtotal * 0.08;
-  const total = subtotal + tax + delivery;
+  const total = subtotal + tax + delivery; // Estimated total for display
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -288,99 +290,135 @@ const Checkout: React.FC = () => {
         // Handle VNPay payment
         setShowVNPayModal(true);
         
-        // Simulate VNPay payment
-        const paymentResult = await simulateVNPayPayment();
-        
-        if (paymentResult.success) {
-          // Determine restaurant from cart items
-          const restaurantId = determineRestaurantFromCartItems(items);
+        try {
+          // Split orders by restaurant first to get total amount
+          const splitResult = splitOrdersByRestaurant(items, delivery);
+          const totalAmount = splitResult.totalAmount;
           
-          // Create order with VNPay payment
-          const orderId = Date.now().toString();
-          const newOrder = {
-            id: orderId,
+          // Generate unique order ID for payment reference
+          const paymentOrderId = `ORDER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          
+          // Create VNPay payment URL
+          const paymentUrl = await createVNPayPaymentUrl({
+            amount: totalAmount,
+            orderInfo: `Thanh toan don hang ${paymentOrderId}`,
+            orderId: paymentOrderId,
+            returnUrl: `${window.location.origin}/vnpay-return`,
+          });
+          
+          // Store order data in sessionStorage for callback processing
+          // This allows us to create orders after successful payment
+          const orderData = {
             name: form.name,
             phone: form.phone,
             address: `${form.street}, ${form.district}, ${form.city}`,
-            items: items.map(item => ({
-              name: item.name,
-              qty: item.qty,
-              price: item.price
-            })),
-            total,
-            status: "Pending" as const,
-            paymentMethod: 'vnpay' as const,
-            paymentStatus: 'completed' as const,
-            vnpayTransactionId: paymentResult.transactionId,
-            dronePath: ["Nhà hàng", "Kho Drone", "Đang giao", "Hoàn tất"],
-            restaurantId: restaurantId || undefined,
-            userId: user?.id || undefined,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
+            items: items,
+            userId: user?.id,
+            note: form.note,
+            paymentSessionId: splitResult.paymentSessionId,
+            splitResult: splitResult,
+            paymentOrderId: paymentOrderId,
+            timestamp: Date.now(),
           };
           
-        addOrder(newOrder);
-        
-        // Notify restaurant about the new order
-        if (restaurantId) {
-          notifyRestaurant(newOrder).catch(err => {
-            console.error('Failed to notify restaurant:', err);
-            // Don't show error to user, order was still created successfully
-          });
-        }
-        
-        clear();
-        toast.success("Thanh toán VNPay thành công!");
-        navigate(`/order-confirmation?orderId=${orderId}`);
-        } else {
-          toast.error(paymentResult.message);
+          sessionStorage.setItem('vnpay_pending_order', JSON.stringify(orderData));
+          
+          // For demo/simulation: Use simulate function
+          // In production, redirect to actual VNPay URL: window.location.href = paymentUrl;
+          const paymentResult = await simulateVNPayPayment();
+          
+          if (paymentResult.success) {
+            // Create orders from split result
+            const createdOrders = createOrdersFromSplit(splitResult, {
+              name: form.name,
+              phone: form.phone,
+              address: `${form.street}, ${form.district}, ${form.city}`,
+              items: items,
+              paymentMethod: 'vnpay',
+              paymentStatus: 'completed',
+              vnpayTransactionId: paymentResult.transactionId,
+              userId: user?.id,
+              note: form.note
+            });
+            
+            // Add all orders at once
+            addOrders(createdOrders);
+            
+            // Notify each restaurant about their order
+            for (const order of createdOrders) {
+              if (order.restaurantId) {
+                notifyRestaurant(order).catch(err => {
+                  console.error(`Failed to notify restaurant ${order.restaurantId}:`, err);
+                  // Don't show error to user, order was still created successfully
+                });
+              }
+            }
+            
+            // Clear pending order from sessionStorage
+            sessionStorage.removeItem('vnpay_pending_order');
+            
+            clear();
+            toast.success("Thanh toán VNPay thành công!");
+            
+            // Navigate to confirmation with first order ID (or payment session ID)
+            const firstOrderId = createdOrders[0]?.id || '';
+            navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}`);
+          } else {
+            toast.error(paymentResult.message);
+            sessionStorage.removeItem('vnpay_pending_order');
+          }
+        } catch (error) {
+          console.error('[VNPay] Payment error:', error);
+          toast.error('Không thể tạo URL thanh toán VNPay. Vui lòng thử lại.');
+          sessionStorage.removeItem('vnpay_pending_order');
+        } finally {
+          setShowVNPayModal(false);
         }
       } else {
-        // Determine restaurant from cart items
-        const restaurantId = determineRestaurantFromCartItems(items);
+        // Split orders by restaurant
+        const splitResult = splitOrdersByRestaurant(items, delivery);
         
-        // Handle other payment methods (COD, etc.)
-        const orderId = Date.now().toString();
-        const newOrder = {
-          id: orderId,
+        // Create orders from split result
+        const createdOrders = createOrdersFromSplit(splitResult, {
           name: form.name,
           phone: form.phone,
           address: `${form.street}, ${form.district}, ${form.city}`,
-          items: items.map(item => ({
-            name: item.name,
-            qty: item.qty,
-            price: item.price
-          })),
-          total,
-          status: "Pending" as const,
+          items: items,
           paymentMethod: form.payment as any,
           paymentStatus: form.payment === 'cod' ? 'Đang chờ phê duyệt' : 'completed',
-          dronePath: ["Nhà hàng", "Kho Drone", "Đang giao", "Hoàn tất"],
-          restaurantId: restaurantId || undefined,
-          userId: user?.id || undefined,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
+          userId: user?.id,
+          note: form.note
+        });
         
-        addOrder(newOrder);
+        // Add all orders at once
+        addOrders(createdOrders);
         
-        // Notify restaurant about the new order
-        if (restaurantId) {
-          notifyRestaurant(newOrder).catch(err => {
-            console.error('Failed to notify restaurant:', err);
-            // Don't show error to user, order was still created successfully
-          });
+        // Notify each restaurant about their order
+        for (const order of createdOrders) {
+          if (order.restaurantId) {
+            notifyRestaurant(order).catch(err => {
+              console.error(`Failed to notify restaurant ${order.restaurantId}:`, err);
+              // Don't show error to user, order was still created successfully
+            });
+          }
         }
         
         clear();
         toast.success("Bạn đã đặt hàng thành công!");
-        navigate(`/order-confirmation?orderId=${orderId}`);
+        
+        // Navigate to confirmation with first order ID (or payment session ID)
+        // The confirmation page will handle showing all orders in the session
+        const firstOrderId = createdOrders[0]?.id || '';
+        navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}`);
       }
     } catch (error) {
+      console.error('[Checkout] Error:', error);
       toast.error("Có lỗi xảy ra khi đặt hàng!");
     } finally {
       setIsSubmitting(false);
-      setShowVNPayModal(false);
+      if (form.payment !== 'vnpay') {
+        setShowVNPayModal(false);
+      }
     }
   };
 

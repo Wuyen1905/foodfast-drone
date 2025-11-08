@@ -16,6 +16,7 @@ export type Order = {
   vnpayTransactionId?: string;
   restaurantId?: string;
   userId?: string; // User ID for logged-in customers
+  paymentSessionId?: string; // Links multiple orders from same checkout
   createdAt?: number;
   updatedAt?: number;
   confirmedAt?: number;
@@ -27,9 +28,11 @@ export type Order = {
 type OrderContextType = {
   orders: Order[];
   addOrder: (order: Order) => void;
+  addOrders: (orders: Order[]) => void; // Add multiple orders at once
   getOrdersByPhone: (phone: string) => Order[];
   getOrdersByUserId: (userId: string) => Order[];
   getOrdersByRestaurantId: (restaurantId: string) => Order[];
+  getOrdersByPaymentSession: (paymentSessionId: string) => Order[];
   updateOrderStatus: (id: string, status: OrderStatus) => void;
   updateOrderPaymentStatus: (id: string, paymentStatus: 'Đang chờ phê duyệt' | 'completed' | 'failed', transactionId?: string) => void;
   confirmOrder: (id: string, confirmedBy?: string) => void;
@@ -58,6 +61,15 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     setOrders((prev) => [...prev, orderWithId]);
   };
 
+  const addOrders = (ordersToAdd: Order[]) => {
+    const ordersWithIds = ordersToAdd.map((order, index) => ({
+      ...order,
+      id: order.id || `${Date.now()}-${index}`,
+      createdAt: order.createdAt || Date.now()
+    }));
+    setOrders((prev) => [...prev, ...ordersWithIds]);
+  };
+
   const getOrdersByPhone = (phone: string) => {
     return orders.filter((o) => o.phone === phone);
   };
@@ -67,7 +79,27 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getOrdersByRestaurantId = (restaurantId: string) => {
-    return orders.filter((o) => o.restaurantId === restaurantId);
+    // Normalize restaurant ID for comparison
+    const normalizeId = (id: string) => {
+      const map: Record<string, string> = {
+        'rest_2': 'sweetdreams',
+        'restaurant_2': 'aloha',
+        'sweetdreams': 'sweetdreams',
+        'aloha': 'aloha',
+      };
+      return map[id?.toLowerCase()] || id;
+    };
+    
+    const normalizedTargetId = normalizeId(restaurantId);
+    return orders.filter((o) => {
+      if (!o.restaurantId) return false;
+      const normalizedOrderId = normalizeId(o.restaurantId);
+      return normalizedOrderId === normalizedTargetId;
+    });
+  };
+
+  const getOrdersByPaymentSession = (paymentSessionId: string) => {
+    return orders.filter((o) => o.paymentSessionId === paymentSessionId);
   };
 
   const updateOrderStatus = (id: string, status: OrderStatus) => {
@@ -118,10 +150,12 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
   return (
     <OrderContext.Provider value={{ 
       orders, 
-      addOrder, 
+      addOrder,
+      addOrders,
       getOrdersByPhone,
       getOrdersByUserId,
       getOrdersByRestaurantId,
+      getOrdersByPaymentSession,
       updateOrderStatus, 
       updateOrderPaymentStatus,
       confirmOrder,

@@ -12,6 +12,7 @@ import { formatVND } from '@/utils/currency';
 import dayjs from 'dayjs';
 import { getRestaurantById } from '@/services/adminService';
 import type { Order } from '@/context/OrderContext';
+import toast from 'react-hot-toast';
 
 const Container = styled.div`
   max-width: 800px;
@@ -215,22 +216,24 @@ const ErrorState = styled.div`
 const OrderConfirmation: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { orders } = useOrders();
+  const { orders, getOrdersByPaymentSession } = useOrders();
   const [order, setOrder] = useState<Order | null>(null);
-  const [restaurantName, setRestaurantName] = useState<string>('');
+  const [allSessionOrders, setAllSessionOrders] = useState<Order[]>([]);
+  const [restaurantNames, setRestaurantNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   const orderId = searchParams.get('orderId');
+  const paymentSessionId = searchParams.get('paymentSessionId');
 
   useEffect(() => {
-    const loadOrder = async () => {
+    const loadOrders = async () => {
       if (!orderId) {
         setLoading(false);
         return;
       }
 
       try {
-        // Find order by ID
+        // Find the initial order by ID
         const foundOrder = orders.find(o => o.id === orderId);
         
         if (!foundOrder) {
@@ -240,15 +243,45 @@ const OrderConfirmation: React.FC = () => {
 
         setOrder(foundOrder);
 
-        // Get restaurant name if restaurantId exists
-        if (foundOrder.restaurantId) {
-          try {
-            const restaurant = await getRestaurantById(foundOrder.restaurantId);
-            if (restaurant) {
-              setRestaurantName(restaurant.name);
+        // If paymentSessionId is provided, get all orders from the session
+        let sessionOrders: Order[] = [];
+        if (paymentSessionId) {
+          sessionOrders = getOrdersByPaymentSession(paymentSessionId);
+        } else if (foundOrder.paymentSessionId) {
+          // Fallback: use paymentSessionId from the order
+          sessionOrders = getOrdersByPaymentSession(foundOrder.paymentSessionId);
+        }
+
+        // If we have multiple orders in the session, use all of them
+        // Otherwise, just use the single order
+        if (sessionOrders.length > 1) {
+          setAllSessionOrders(sessionOrders);
+          // Get restaurant names for all orders
+          const restaurantIds = [...new Set(sessionOrders.map(o => o.restaurantId).filter(Boolean) as string[])];
+          const names: Record<string, string> = {};
+          for (const id of restaurantIds) {
+            try {
+              const restaurant = await getRestaurantById(id);
+              if (restaurant) {
+                names[id] = restaurant.name;
+              }
+            } catch (error) {
+              console.error(`Error fetching restaurant ${id}:`, error);
             }
-          } catch (error) {
-            console.error('Error fetching restaurant:', error);
+          }
+          setRestaurantNames(names);
+        } else {
+          setAllSessionOrders([foundOrder]);
+          // Get restaurant name for single order
+          if (foundOrder.restaurantId) {
+            try {
+              const restaurant = await getRestaurantById(foundOrder.restaurantId);
+              if (restaurant) {
+                setRestaurantNames({ [foundOrder.restaurantId]: restaurant.name });
+              }
+            } catch (error) {
+              console.error('Error fetching restaurant:', error);
+            }
           }
         }
 
@@ -259,8 +292,8 @@ const OrderConfirmation: React.FC = () => {
       }
     };
 
-    loadOrder();
-  }, [orderId, orders]);
+    loadOrders();
+  }, [orderId, paymentSessionId, orders, getOrdersByPaymentSession]);
 
   const getStatusText = (status: string): string => {
     const statusMap: Record<string, string> = {
@@ -310,6 +343,9 @@ const OrderConfirmation: React.FC = () => {
     );
   }
 
+  // Calculate total for all orders in session
+  const totalForAllOrders = allSessionOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
   return (
     <Container>
       <ConfirmationCard
@@ -319,38 +355,85 @@ const OrderConfirmation: React.FC = () => {
       >
         <SuccessIcon>✅</SuccessIcon>
         <ThankYouMessage>Đặt hàng thành công!</ThankYouMessage>
-        <SubMessage>Cảm ơn bạn đã đặt hàng tại FoodFast!</SubMessage>
+        <SubMessage>
+          {allSessionOrders.length > 1 
+            ? `Bạn đã đặt ${allSessionOrders.length} đơn hàng từ ${allSessionOrders.length} nhà hàng khác nhau.`
+            : 'Cảm ơn bạn đã đặt hàng tại FoodFast!'}
+        </SubMessage>
 
-        <Section>
-          <SectionTitle>Thông tin đơn hàng</SectionTitle>
-          <InfoRow>
-            <InfoLabel>Mã đơn hàng:</InfoLabel>
-            <InfoValue $highlight>#{order.id}</InfoValue>
-          </InfoRow>
-          <InfoRow>
-            <InfoLabel>Nhà hàng:</InfoLabel>
-            <InfoValue>{restaurantName || order.restaurantId || 'N/A'}</InfoValue>
-          </InfoRow>
-          <InfoRow>
-            <InfoLabel>Trạng thái:</InfoLabel>
-            <StatusBadge $status={order.status}>
-              {getStatusText(order.status)}
-            </StatusBadge>
-          </InfoRow>
-          <InfoRow>
-            <InfoLabel>Thời gian đặt hàng:</InfoLabel>
-            <InfoValue>
-              {order.createdAt 
-                ? dayjs(order.createdAt).format('DD/MM/YYYY HH:mm')
-                : 'N/A'}
-            </InfoValue>
-          </InfoRow>
-        </Section>
+        {allSessionOrders.length > 1 && (
+          <Section>
+            <SectionTitle>Tổng quan đơn hàng</SectionTitle>
+            <InfoRow>
+              <InfoLabel>Số lượng đơn hàng:</InfoLabel>
+              <InfoValue $highlight>{allSessionOrders.length} đơn</InfoValue>
+            </InfoRow>
+            <InfoRow>
+              <InfoLabel>Tổng thanh toán:</InfoLabel>
+              <InfoValue $highlight>{formatVND(totalForAllOrders)}</InfoValue>
+            </InfoRow>
+          </Section>
+        )}
+
+        {allSessionOrders.map((sessionOrder, index) => (
+          <Section key={sessionOrder.id}>
+            <SectionTitle>
+              {allSessionOrders.length > 1 ? `Đơn hàng ${index + 1}` : 'Thông tin đơn hàng'}
+            </SectionTitle>
+            <InfoRow>
+              <InfoLabel>Mã đơn hàng:</InfoLabel>
+              <InfoValue $highlight>#{sessionOrder.id}</InfoValue>
+            </InfoRow>
+            <InfoRow>
+              <InfoLabel>Nhà hàng:</InfoLabel>
+              <InfoValue>
+                {sessionOrder.restaurantId 
+                  ? (restaurantNames[sessionOrder.restaurantId] || sessionOrder.restaurantId)
+                  : 'N/A'}
+              </InfoValue>
+            </InfoRow>
+            <InfoRow>
+              <InfoLabel>Trạng thái:</InfoLabel>
+              <StatusBadge $status={sessionOrder.status}>
+                {getStatusText(sessionOrder.status)}
+              </StatusBadge>
+            </InfoRow>
+            <InfoRow>
+              <InfoLabel>Thời gian đặt hàng:</InfoLabel>
+              <InfoValue>
+                {sessionOrder.createdAt 
+                  ? dayjs(sessionOrder.createdAt).format('DD/MM/YYYY HH:mm')
+                  : 'N/A'}
+              </InfoValue>
+            </InfoRow>
+
+            <div style={{ marginTop: '16px' }}>
+              <SectionTitle style={{ fontSize: '16px', marginBottom: '12px' }}>Sản phẩm</SectionTitle>
+              <ItemsList>
+                {sessionOrder.items.map((item, itemIndex) => (
+                  <ItemRow key={itemIndex}>
+                    <ItemInfo>
+                      <ItemName>{item.name}</ItemName>
+                      <ItemDetails>
+                        Số lượng: {item.qty} × {formatVND(item.price)}
+                      </ItemDetails>
+                    </ItemInfo>
+                    <ItemTotal>{formatVND(item.price * item.qty)}</ItemTotal>
+                  </ItemRow>
+                ))}
+              </ItemsList>
+              <InfoRow style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                <InfoLabel>Tổng đơn hàng:</InfoLabel>
+                <InfoValue $highlight>{formatVND(sessionOrder.total)}</InfoValue>
+              </InfoRow>
+            </div>
+          </Section>
+        ))}
 
         <Section>
           <SectionTitle>Thông tin khách hàng</SectionTitle>
           <InfoRow>
-            <InfoLabel>Họ tên:</InfoLabel>
+            <InfoLabel>Tên:</InfoLabel>
             <InfoValue>{order.name}</InfoValue>
           </InfoRow>
           <InfoRow>
@@ -364,40 +447,23 @@ const OrderConfirmation: React.FC = () => {
         </Section>
 
         <Section>
-          <SectionTitle>Chi tiết đơn hàng</SectionTitle>
-          <ItemsList>
-            {order.items.map((item, index) => (
-              <ItemRow key={index}>
-                <ItemInfo>
-                  <ItemName>{item.name}</ItemName>
-                  <ItemDetails>
-                    Số lượng: {item.qty} × {formatVND(item.price)}
-                  </ItemDetails>
-                </ItemInfo>
-                <ItemTotal>{formatVND(item.qty * item.price)}</ItemTotal>
-              </ItemRow>
-            ))}
-          </ItemsList>
-        </Section>
-
-        <Section>
           <SectionTitle>Thanh toán</SectionTitle>
           <InfoRow>
             <InfoLabel>Phương thức thanh toán:</InfoLabel>
             <InfoValue>{getPaymentMethodText(order.paymentMethod)}</InfoValue>
           </InfoRow>
           <InfoRow>
-            <InfoLabel>Tổng tiền:</InfoLabel>
-            <InfoValue $highlight>{formatVND(order.total)}</InfoValue>
+            <InfoLabel>Trạng thái thanh toán:</InfoLabel>
+            <InfoValue>
+              {order.paymentStatus === 'completed' ? 'Đã thanh toán' : 
+               order.paymentStatus === 'Đang chờ phê duyệt' ? 'Đang chờ phê duyệt' :
+               'Chưa thanh toán'}
+            </InfoValue>
           </InfoRow>
-          {order.paymentStatus && (
+          {allSessionOrders.length > 1 && (
             <InfoRow>
-              <InfoLabel>Trạng thái thanh toán:</InfoLabel>
-              <InfoValue>
-                {order.paymentStatus === 'completed' ? 'Đã thanh toán' : 
-                 order.paymentStatus === 'Đang chờ phê duyệt' ? 'Đang chờ phê duyệt' :
-                 'Chưa thanh toán'}
-              </InfoValue>
+              <InfoLabel>Tổng thanh toán (tất cả đơn):</InfoLabel>
+              <InfoValue $highlight>{formatVND(totalForAllOrders)}</InfoValue>
             </InfoRow>
           )}
         </Section>
