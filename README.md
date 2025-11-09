@@ -128,16 +128,27 @@ Mật khẩu: user1123
 Cây thư mục mẫu:
 
 foodfast/
+
 │
-├── web/                # Frontend React.js
+
+├── web/     # Frontend React.js
+
 │   ├── src/
+
 │   │   ├── components/
+
 │   │   ├── pages/
+
 │   │   ├── services/
+
 │   │   └── App.jsx
+
          ..............
+         
 │   └── package.json
+
 │
+
 └── mobile/             # Frontend React Native
 
 📝Ghi chú / Lưu ý
@@ -147,6 +158,7 @@ Mỗi nhà hàng có drone riêng, chỉ giao đơn thuộc nhà hàng đó.
 Không gom đơn nhiều nhà hàng trong cùng một giao dịch thanh toán.
 
 Ứng dụng có thể truy cập qua LAN để dùng trên điện thoại.
+
 
 
 
