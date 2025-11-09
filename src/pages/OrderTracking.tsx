@@ -8,6 +8,7 @@ import dayjs from "dayjs";
 import { formatVND, formatOrderTotal } from "../utils/currency";
 import { APP_CONFIG, ORDER_STATUS, PAYMENT_METHODS } from "../constants";
 import DroneJourney from "../components/DroneJourney";
+import { shouldShowDroneTracking } from "../services/orderService";
 
 // Styled Components
 const Page = styled.div`
@@ -218,14 +219,22 @@ const OrderTracking: React.FC = () => {
     delivered: boolean;
   }}>({});
 
+  // State for toggling drone journey visibility
+  const [visibleDroneOrder, setVisibleDroneOrder] = useState<string | null>(null);
+
+  const toggleDroneJourney = (orderId: string) => {
+    setVisibleDroneOrder(prev => (prev === orderId ? null : orderId));
+  };
+
   // Check order limits for logged-in users
   const checkOrderLimit = (phoneNumber: string): boolean => {
     if (!user) return true; // Guest users don't have limits
     
     const userOrders = getOrdersByPhone(phoneNumber);
-    const activeOrders = userOrders.filter(order => 
-      order.status === ORDER_STATUS.PROCESSING || order.status === ORDER_STATUS.DELIVERING
-    );
+    const activeOrders = userOrders.filter(order => {
+      const normalizedStatus = normalizeOrderStatus(order.status);
+      return (order.status as string) === ORDER_STATUS.PROCESSING || normalizedStatus === 'Đang giao';
+    });
     
     return activeOrders.length < APP_CONFIG.MAX_ORDERS_PER_PHONE;
   };
@@ -256,12 +265,22 @@ const OrderTracking: React.FC = () => {
     }, 1000);
   };
 
+  // Normalize order status for consistent comparison
+  // Treats "Delivering" (case-insensitive) and "Đang giao" as the same logical state
+  const normalizeOrderStatus = (status: string | undefined | null): string => {
+    if (!status) return '';
+    const raw = status.trim().toLowerCase();
+    if (raw === 'delivering') return 'Đang giao';
+    return status;
+  };
+
   const handleStatusUpdate = (orderId: string, newStatus: string) => {
     updateOrderStatus(orderId, newStatus as any);
     toast.success(`✅ Đã cập nhật trạng thái đơn hàng thành "${newStatus}"`);
     
-    // Start drone tracking if status is "Delivering"
-    if (newStatus === ORDER_STATUS.DELIVERING) {
+    // Start drone tracking if status is "Delivering" or "Đang giao"
+    const normalizedStatus = normalizeOrderStatus(newStatus);
+    if (normalizedStatus === 'Đang giao') {
       startDroneTracking(orderId);
     }
     
@@ -295,7 +314,7 @@ const OrderTracking: React.FC = () => {
         
         if (newEta === 0) {
           clearInterval(interval);
-          updateOrderStatus(orderId, ORDER_STATUS.COMPLETED);
+          updateOrderStatus(orderId, ORDER_STATUS.COMPLETED as any);
           toast.success("🛸 Drone successfully delivered your order!");
           return {
             ...prev,
@@ -334,6 +353,22 @@ const OrderTracking: React.FC = () => {
 
   const displayOrders = isAdmin() ? orders : filteredOrders;
 
+  // Auto-hide drone journey when order status changes to completed or cancelled
+  useEffect(() => {
+    const completedOrCancelledOrders = displayOrders
+      .filter(order => {
+        const rawStatus = order?.status?.trim()?.toLowerCase();
+        const isCompleted = rawStatus === "completed" || rawStatus === "delivered" || rawStatus === "đã giao";
+        const isCancelled = rawStatus === "cancelled" || rawStatus === "đã hủy";
+        return isCompleted || isCancelled;
+      })
+      .map(order => order.id);
+
+    if (visibleDroneOrder && completedOrCancelledOrders.includes(visibleDroneOrder)) {
+      setVisibleDroneOrder(null);
+    }
+  }, [displayOrders, visibleDroneOrder]);
+
   // Enhanced drone tracking component with real-time animation
   const DroneTracking = ({ order }: { order: any }) => {
     const droneState = droneStates[order.id];
@@ -363,37 +398,41 @@ const OrderTracking: React.FC = () => {
       }
     }, [order.id]);
 
-    // Start animation when order status changes to "Delivering" and has assigned drone
+    // Start animation when order status changes to "Delivering" or "Đang giao" and has assigned drone
     useEffect(() => {
+      // Normalize order status for comparison
+      const normalizedStatus = normalizeOrderStatus(order.status);
+      
       // Use service logic to determine if drone should be shown
-      const { shouldShowDroneTracking } = require('../services/orderService');
       const shouldShow = shouldShowDroneTracking(order, assignedDrone);
 
       if (shouldShow && !droneState) {
         setIsAnimationActive(true);
         startDroneTracking(order.id);
-      } else if (order.status === ORDER_STATUS.COMPLETED || order.status === 'Cancelled') {
+      } else if (order.status === ORDER_STATUS.COMPLETED || order.status === 'Cancelled' || normalizedStatus === 'Đã giao' || normalizedStatus === 'Đã hủy') {
         setIsAnimationActive(false);
       }
     }, [order.status, order, assignedDrone, droneState]);
 
     const handleDroneComplete = () => {
-      updateOrderStatus(order.id, ORDER_STATUS.COMPLETED);
+      updateOrderStatus(order.id, ORDER_STATUS.COMPLETED as any);
       setIsAnimationActive(false);
       toast.success("🛸 Drone successfully delivered your order!");
     };
 
+    // Normalize order status for comparison
+    const normalizedStatus = normalizeOrderStatus(order.status);
+    
     // Use service logic to determine if drone tracking should be shown
     // Hide if order is cancelled or completed (drone should have returned)
-    if (order.status === 'Cancelled' || order.status === ORDER_STATUS.COMPLETED) {
+    if (order.status === 'Cancelled' || order.status === ORDER_STATUS.COMPLETED || normalizedStatus === 'Đã giao' || normalizedStatus === 'Đã hủy') {
       return null;
     }
 
     // Only show if order is in progress and has an assigned drone
-    const isActiveDelivery = order.status === ORDER_STATUS.DELIVERING || 
-                            order.status === 'delivering' || 
-                            order.status === 'In Progress' ||
-                            order.status === 'Ready';
+    // Treats "Delivering" (case-insensitive) and "Đang giao" as the same logical state
+    const rawStatus = order?.status?.trim()?.toLowerCase();
+    const isActiveDelivery = rawStatus === 'đang giao' || rawStatus === 'delivering';
     
     if (!isActiveDelivery || !assignedDrone) {
       return null;
@@ -547,6 +586,59 @@ const OrderTracking: React.FC = () => {
               ))}
             </ul>
           </div>
+          
+          {/* Toggle Drone Journey Button */}
+          {(() => {
+            const rawStatus = order?.status?.trim()?.toLowerCase();
+            const isDelivering = rawStatus === "delivering" || rawStatus === "đang giao";
+            const isCompleted = rawStatus === "completed" || rawStatus === "delivered" || rawStatus === "đã giao";
+            const isCancelled = rawStatus === "cancelled" || rawStatus === "đã hủy";
+            
+            // Only show button for delivering orders (not completed or cancelled)
+            if (!isDelivering || isCompleted || isCancelled) return null;
+
+            return (
+              <div style={{ marginTop: "12px" }}>
+                <button
+                  onClick={() => toggleDroneJourney(order.id)}
+                  style={{
+                    padding: "10px 16px",
+                    borderRadius: "8px",
+                    border: "none",
+                    background: "linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                    transition: "0.2s ease-in-out",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  {visibleDroneOrder === order.id ? "Ẩn hành trình" : "Xem hành trình 🚁"}
+                </button>
+
+                {/* Render Drone Journey when toggled */}
+                {visibleDroneOrder === order.id && (
+                  <div style={{ marginTop: "16px" }}>
+                    <DroneJourney 
+                      orderId={order.id} 
+                      isActive={true}
+                      onComplete={() => {
+                        // Cleanup when drone journey completes
+                        setVisibleDroneOrder(prev => prev === order.id ? null : prev);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           
           <DroneTracking order={order} />
         </OrderCard>

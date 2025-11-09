@@ -13,6 +13,7 @@ import { formatVND } from '@/utils/currency';
 import dayjs from 'dayjs';
 import { getRestaurantById } from '@/services/adminService';
 import type { Order } from '@/context/OrderContext';
+import DroneJourney from '@/components/DroneJourney';
 
 const Container = styled.div`
   max-width: 1200px;
@@ -214,6 +215,11 @@ const OrderHistory: React.FC = () => {
   const { orders, getOrdersByUserId } = useOrders();
   const [userOrders, setUserOrders] = useState<OrderWithRestaurant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [visibleDroneOrder, setVisibleDroneOrder] = useState<string | null>(null);
+
+  const toggleDroneJourney = (orderId: string) => {
+    setVisibleDroneOrder(prev => (prev === orderId ? null : orderId));
+  };
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -262,13 +268,32 @@ const OrderHistory: React.FC = () => {
     loadOrders();
   }, [user, orders, getOrdersByUserId]);
 
+  // Auto-hide drone journey when order status changes to completed or cancelled
+  useEffect(() => {
+    const completedOrCancelledOrders = userOrders
+      .filter(order => {
+        const rawStatus = order?.status?.trim()?.toLowerCase();
+        const isCompleted = rawStatus === "completed" || rawStatus === "delivered" || rawStatus === "đã giao";
+        const isCancelled = rawStatus === "cancelled" || rawStatus === "đã hủy";
+        return isCompleted || isCancelled;
+      })
+      .map(order => order.id);
+
+    if (visibleDroneOrder && completedOrCancelledOrders.includes(visibleDroneOrder)) {
+      setVisibleDroneOrder(null);
+    }
+  }, [userOrders, visibleDroneOrder]);
+
   const getStatusText = (status: string): string => {
     const statusMap: Record<string, string> = {
       'Pending': 'Đang chờ phê duyệt',
       'Confirmed': 'Đã xác nhận',
       'In Progress': 'Đang xử lý',
       'Ready': 'Sẵn sàng',
+      'Delivering': 'Đang giao hàng',
+      'Đang giao': 'Đang giao hàng',
       'Delivered': 'Đã giao hàng',
+      'Completed': 'Đã giao hàng',
       'Cancelled': 'Đã hủy'
     };
     return statusMap[status] || status;
@@ -388,6 +413,62 @@ const OrderHistory: React.FC = () => {
             <TotalAmount>
               Tổng tiền: {formatVND(order.total)}
             </TotalAmount>
+
+            {/* Toggle Drone Journey Button for Delivering Orders */}
+            {(() => {
+              const rawStatus = order?.status?.trim()?.toLowerCase();
+              const isDelivering = rawStatus === "delivering" || rawStatus === "đang giao";
+              const isCompleted = rawStatus === "completed" || rawStatus === "delivered" || rawStatus === "đã giao";
+              const isCancelled = rawStatus === "cancelled" || rawStatus === "đã hủy";
+              
+              // Only show button for delivering orders (not completed or cancelled)
+              if (!isDelivering || isCompleted || isCancelled) return null;
+
+              return (
+                <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid var(--border)" }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleDroneJourney(order.id);
+                    }}
+                    style={{
+                      padding: "10px 16px",
+                      borderRadius: "8px",
+                      border: "none",
+                      background: "linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      transition: "0.2s ease-in-out",
+                      width: "100%",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  >
+                    {visibleDroneOrder === order.id ? "Ẩn hành trình" : "Xem hành trình 🚁"}
+                  </button>
+
+                  {/* Render Drone Journey when toggled */}
+                  {visibleDroneOrder === order.id && (
+                    <div style={{ marginTop: "16px" }}>
+                      <DroneJourney 
+                        orderId={order.id} 
+                        isActive={true}
+                        onComplete={() => {
+                          setVisibleDroneOrder(prev => prev === order.id ? null : prev);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </OrderCard>
         ))}
       </OrdersList>

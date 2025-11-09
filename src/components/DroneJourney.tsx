@@ -192,11 +192,12 @@ const ProgressText = styled.div`
 `;
 
 const DroneAnimation = styled.div`
-  height: 120px;
+  min-height: 250px;
+  height: 250px;
   background: linear-gradient(135deg, #87CEEB 0%, #98FB98 50%, #F0E68C 100%);
   border-radius: 12px;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   margin-top: 16px;
   display: flex;
   align-items: center;
@@ -216,7 +217,9 @@ const FlightPath = styled.svg`
   left: 0;
   width: 100%;
   height: 100%;
+  min-height: 250px;
   pointer-events: none;
+  overflow: visible;
 `;
 
 const PathLine = styled.path`
@@ -259,6 +262,7 @@ const DroneJourney: React.FC<DroneJourneyProps> = ({
   const progressControls = useAnimation();
   const intervalRef = useRef<NodeJS.Timeout>();
   const trailRefs = useRef<HTMLDivElement[]>([]);
+  const isInitializedRef = useRef<boolean>(false);
   
   // Journey stages with color coding
   const stages: JourneyStage[] = [
@@ -268,12 +272,23 @@ const DroneJourney: React.FC<DroneJourneyProps> = ({
     { id: 'completed', icon: '✅', label: 'Đã giao thành công', key: 'completed', color: '#28a745' }
   ];
 
-  // Load drone state from localStorage
+  // Load drone state from localStorage - only initialize once per orderId
   useEffect(() => {
+    // Prevent state updates during render by using a ref guard
+    if (isInitializedRef.current) return;
+    
     const savedState = localStorage.getItem(`drone-state-${orderId}`);
     if (savedState) {
-      const parsed = JSON.parse(savedState);
-      setDroneState(parsed);
+      try {
+        const parsed = JSON.parse(savedState);
+        // Use setTimeout to defer state update to next tick, avoiding render-phase updates
+        setTimeout(() => {
+          setDroneState(parsed);
+          isInitializedRef.current = true;
+        }, 0);
+      } catch (error) {
+        console.error('Error parsing saved drone state:', error);
+      }
     } else if (isActive) {
       // Initialize new drone state
       const distance = generateRandomDistance();
@@ -287,10 +302,19 @@ const DroneJourney: React.FC<DroneJourneyProps> = ({
         distance,
         initialEta
       };
-      setDroneState(newState);
-      localStorage.setItem(`drone-state-${orderId}`, JSON.stringify(newState));
+      // Use setTimeout to defer state update to next tick, avoiding render-phase updates
+      setTimeout(() => {
+        setDroneState(newState);
+        localStorage.setItem(`drone-state-${orderId}`, JSON.stringify(newState));
+        isInitializedRef.current = true;
+      }, 0);
     }
   }, [orderId, isActive]);
+
+  // Reset initialization flag when orderId changes
+  useEffect(() => {
+    isInitializedRef.current = false;
+  }, [orderId]);
 
   // Save drone state to localStorage whenever it changes
   useEffect(() => {
@@ -310,8 +334,11 @@ const DroneJourney: React.FC<DroneJourneyProps> = ({
           
           if (newEta === 0) {
             clearInterval(intervalRef.current!);
-            toast.success('🎉 Giao hàng đã hoàn tất!');
-            onComplete?.();
+            // Defer toast and onComplete callback to next tick to avoid updating parent during render
+            setTimeout(() => {
+              toast.success('🎉 Giao hàng đã hoàn tất!');
+              onComplete?.();
+            }, 0);
             return {
               ...prev,
               eta: 0,

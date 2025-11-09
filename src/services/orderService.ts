@@ -163,26 +163,40 @@ export function validateOrderDroneRelationship(
 }
 
 /**
+ * Normalize order status for consistent comparison
+ * Treats "Delivering" (case-insensitive) and "Đang giao" as the same logical state
+ */
+function normalizeOrderStatus(status: string | undefined | null): string {
+  if (!status) return '';
+  const raw = status.trim().toLowerCase();
+  if (raw === 'delivering') return 'Đang giao';
+  return status;
+}
+
+/**
  * Check if order should show drone tracking
  * Logic to determine if drone animation should be displayed
  */
 export function shouldShowDroneTracking(order: Order, drone: Drone | undefined): boolean {
+  // Normalize order status for comparison
+  const normalizedStatus = normalizeOrderStatus(order.status);
+  
   // Don't show if order is cancelled
-  if (order.status === 'Cancelled' || order.status === 'cancelled') {
+  if (order.status === 'Cancelled' || order.status === 'cancelled' || normalizedStatus === 'Đã hủy') {
     return false;
   }
 
   // Don't show if order is delivered (drone should have returned)
-  if (order.status === 'Delivered' || order.status === 'delivered') {
+  if (order.status === 'Delivered' || order.status === 'delivered' || normalizedStatus === 'Đã giao') {
     return false;
   }
 
   // Show if order is in progress and has a drone
+  // Treats "Delivering" (case-insensitive) and "Đang giao" as the same logical state
   if (drone && (
     order.status === 'In Progress' || 
     order.status === 'Ready' || 
-    order.status === 'Delivering' ||
-    order.status === 'delivering' ||
+    normalizedStatus === 'Đang giao' ||
     order.status === 'preparing'
   )) {
     return true;

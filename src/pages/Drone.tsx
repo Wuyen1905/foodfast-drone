@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import styled from 'styled-components';
 import { motion, useAnimation } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -197,7 +197,17 @@ const Drone: React.FC = () => {
   const [delivered, setDelivered] = useState(false);
   const controls = useAnimation();
   const droneControls = useAnimation();
+  const hasAutoStartedRef = useRef(false);
   
+  // Normalize order status for consistent comparison
+  // Treats "Delivering" (case-insensitive) and "Đang giao" as the same logical state
+  const normalizeStatus = (status?: string) => {
+    if (!status) return '';
+    const raw = status.trim().toLowerCase();
+    if (raw === 'delivering') return 'Đang giao';
+    return status;
+  };
+
   // ETA countdown effect
   useEffect(() => {
     if (eta > 0 && isFlying) {
@@ -214,18 +224,43 @@ const Drone: React.FC = () => {
       setPhone(user.phone);
       const userOrders = getOrdersByPhone(user.phone);
       setOrders(userOrders);
+      
+      // [DEBUG: Order Status Verification]
+      console.group("📦 DEBUG: Drone.tsx Order Status Check");
+      console.table(userOrders.map(o => ({
+        id: o.id,
+        status: o.status,
+        normalized: o?.status?.trim()?.toLowerCase()
+      })));
+      console.groupEnd();
     }
     
-    // Check for orderId from Orders page
+    // Check for orderId from Orders page (takes priority)
     const orderId = searchParams.get('orderId');
-    if (orderId && orders.length > 0) {
+    if (orderId && Array.isArray(orders) && orders.length > 0) {
       const order = orders.find(o => o.id === orderId);
       if (order) {
         setSelectedOrder(order);
         startDelivery(order);
+        hasAutoStartedRef.current = true;
+        return;
       }
     }
-  }, [user, getOrdersByPhone, searchParams, orders]);
+    
+    // [Auto Start Drone for Delivering Orders - Safe Patch]
+    if (!selectedOrder && Array.isArray(orders) && orders.length > 0) {
+      const autoOrder = orders.find(o => {
+        const raw = o?.status?.trim()?.toLowerCase();
+        return raw === "delivering" || raw === "đang giao";
+      });
+      if (autoOrder) {
+        console.log("🛸 Auto-triggering drone animation for order:", autoOrder.id);
+        setSelectedOrder(autoOrder);
+        startDelivery(autoOrder);
+        hasAutoStartedRef.current = true;
+      }
+    }
+  }, [user, getOrdersByPhone, searchParams, orders, selectedOrder]);
 
   const handlePhoneSubmit = () => {
     if (!phone) {
@@ -240,6 +275,19 @@ const Drone: React.FC = () => {
     
     const foundOrders = getOrdersByPhone(phone);
     setOrders(foundOrders);
+    
+    // [DEBUG: Order Status Verification - Phone Search]
+    console.group("📦 DEBUG: Drone.tsx Order Status Check (Phone Search)");
+    console.table(foundOrders.map(o => ({
+      id: o.id,
+      status: o.status,
+      normalized: o?.status?.trim()?.toLowerCase()
+    })));
+    console.groupEnd();
+    
+    // Reset auto-start flag when searching with new phone number
+    hasAutoStartedRef.current = false;
+    setSelectedOrder(null);
     
     if (foundOrders.length === 0) {
       toast("📱 Bạn chưa đặt đơn hàng nào!", { icon: "📱" });
@@ -332,9 +380,28 @@ const Drone: React.FC = () => {
                     Trạng thái: <strong>{order.status}</strong>
                   </div>
                 </div>
-                <Button onClick={() => startDelivery(order)}>
-                  Xem chi tiết
-                </Button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+                  <Button onClick={() => startDelivery(order)}>
+                    Xem chi tiết
+                  </Button>
+                  {(() => {
+                    const rawStatus = order?.status?.trim()?.toLowerCase();
+                    if (rawStatus === "delivering" || rawStatus === "đang giao") {
+                      return (
+                        <Button
+                          onClick={() => {
+                            console.log("🚁 Starting drone journey demo for order:", order.id);
+                            setSelectedOrder(order);
+                            startDelivery(order);
+                          }}
+                        >
+                          Xem hành trình 🚁
+                        </Button>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
               </div>
             </OrderItem>
           ))}
