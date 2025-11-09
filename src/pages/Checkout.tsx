@@ -208,8 +208,31 @@ const VNPayQRCode = styled.div`
 const Checkout: React.FC = () => {
   const { user } = useAuth();
   const { addOrders, getOrdersByPhone } = useOrders();
-  const { items, clear, subtotal } = useCart();
+  const { items: allCartItems, clear, removeItems, subtotal: allCartSubtotal } = useCart();
   const navigate = useNavigate();
+  
+  // [Multi-Restaurant Cart] Get checkout items from sessionStorage if available (per-restaurant checkout)
+  const checkoutItems = React.useMemo(() => {
+    try {
+      const stored = sessionStorage.getItem('checkoutItems');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error parsing checkoutItems from sessionStorage:', error);
+    }
+    return allCartItems;
+  }, [allCartItems]);
+  
+  // [Multi-Restaurant Cart] Calculate subtotal for checkout items only
+  const subtotal = React.useMemo(() => {
+    return checkoutItems.reduce((sum: number, item: any) => {
+      const price = Number(item.price) || 0;
+      const qty = Number(item.qty) || 0;
+      return sum + price * qty;
+    }, 0);
+  }, [checkoutItems]);
   
   const [form, setForm] = useState<CheckoutFormData>({
     name: user?.name || "",
@@ -265,7 +288,7 @@ const Checkout: React.FC = () => {
       return;
     }
 
-    if (items.length === 0) {
+    if (checkoutItems.length === 0) {
       toast.error("Giỏ hàng trống!");
       return;
     }
@@ -291,8 +314,8 @@ const Checkout: React.FC = () => {
         setShowVNPayModal(true);
         
         try {
-          // Split orders by restaurant first to get total amount
-          const splitResult = splitOrdersByRestaurant(items, delivery);
+          // [Multi-Restaurant Cart] Split orders by restaurant using checkoutItems
+          const splitResult = splitOrdersByRestaurant(checkoutItems, delivery);
           const totalAmount = splitResult.totalAmount;
           
           // Generate unique order ID for payment reference
@@ -312,7 +335,7 @@ const Checkout: React.FC = () => {
             name: form.name,
             phone: form.phone,
             address: `${form.street}, ${form.district}, ${form.city}`,
-            items: items,
+            items: checkoutItems,
             userId: user?.id,
             note: form.note,
             paymentSessionId: splitResult.paymentSessionId,
@@ -333,7 +356,7 @@ const Checkout: React.FC = () => {
               name: form.name,
               phone: form.phone,
               address: `${form.street}, ${form.district}, ${form.city}`,
-              items: items,
+              items: checkoutItems,
               paymentMethod: 'vnpay',
               paymentStatus: 'completed',
               vnpayTransactionId: paymentResult.transactionId,
@@ -354,10 +377,19 @@ const Checkout: React.FC = () => {
               }
             }
             
-            // Clear pending order from sessionStorage
+            // [Multi-Restaurant Cart] Clear checkoutItems from sessionStorage after successful checkout
+            sessionStorage.removeItem('checkoutItems');
             sessionStorage.removeItem('vnpay_pending_order');
             
-            clear();
+            // [Multi-Restaurant Cart] Remove checked out items from cart
+            if (checkoutItems.length === allCartItems.length) {
+              // If all items were checked out, clear the entire cart
+              clear();
+            } else {
+              // Remove only the checked out items from cart
+              removeItems(checkoutItems);
+            }
+            
             toast.success("Thanh toán VNPay thành công!");
             
             // Navigate to confirmation with first order ID (or payment session ID)
@@ -375,15 +407,15 @@ const Checkout: React.FC = () => {
           setShowVNPayModal(false);
         }
       } else {
-        // Split orders by restaurant
-        const splitResult = splitOrdersByRestaurant(items, delivery);
+        // [Multi-Restaurant Cart] Split orders by restaurant using checkoutItems
+        const splitResult = splitOrdersByRestaurant(checkoutItems, delivery);
         
         // Create orders from split result
         const createdOrders = createOrdersFromSplit(splitResult, {
           name: form.name,
           phone: form.phone,
           address: `${form.street}, ${form.district}, ${form.city}`,
-          items: items,
+          items: checkoutItems,
           paymentMethod: form.payment as any,
           paymentStatus: form.payment === 'cod' ? 'Đang chờ phê duyệt' : 'completed',
           userId: user?.id,
@@ -403,7 +435,18 @@ const Checkout: React.FC = () => {
           }
         }
         
-        clear();
+        // [Multi-Restaurant Cart] Clear checkoutItems from sessionStorage after successful checkout
+        sessionStorage.removeItem('checkoutItems');
+        
+        // [Multi-Restaurant Cart] Remove checked out items from cart
+        if (checkoutItems.length === allCartItems.length) {
+          // If all items were checked out, clear the entire cart
+          clear();
+        } else {
+          // Remove only the checked out items from cart
+          removeItems(checkoutItems);
+        }
+        
         toast.success("Bạn đã đặt hàng thành công!");
         
         // Navigate to confirmation with first order ID (or payment session ID)
@@ -629,7 +672,8 @@ const Checkout: React.FC = () => {
             <SectionTitle>Tóm tắt đơn hàng</SectionTitle>
             
             <OrderSummary>
-              {items.map((item) => (
+              {/* [Multi-Restaurant Cart] Display checkoutItems instead of all cart items */}
+              {checkoutItems.map((item) => (
                 <SummaryRow key={item.id}>
                   <span>{item.name} x {item.qty}</span>
                   <span>{formatVND(item.price * item.qty)}</span>
@@ -656,7 +700,7 @@ const Checkout: React.FC = () => {
 
           <SubmitButton
             type="submit"
-            disabled={isSubmitting || items.length === 0}
+            disabled={isSubmitting || checkoutItems.length === 0}
             whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
             whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
           >

@@ -261,6 +261,7 @@ const DroneJourney: React.FC<DroneJourneyProps> = ({
   const droneControls = useAnimation();
   const progressControls = useAnimation();
   const intervalRef = useRef<NodeJS.Timeout>();
+  const realtimeUpdateRef = useRef<NodeJS.Timeout>();
   const trailRefs = useRef<HTMLDivElement[]>([]);
   const isInitializedRef = useRef<boolean>(false);
   
@@ -367,6 +368,73 @@ const DroneJourney: React.FC<DroneJourneyProps> = ({
       };
     }
   }, [droneState.eta, droneState.isFlying, droneState.delivered, droneState.initialEta, onComplete]);
+
+  // [DroneRealtime] Simulated realtime update - polls every 4 seconds to simulate backend updates
+  useEffect(() => {
+    // Only run realtime simulation when drone is active and flying (simulating "Delivering" status)
+    if (isActive && droneState.isFlying && !droneState.delivered && droneState.initialEta > 0) {
+      console.info(`[DroneRealtime] Starting realtime simulation for order: ${orderId}`);
+      
+      realtimeUpdateRef.current = setInterval(() => {
+        setDroneState(prev => {
+          // Skip if already completed or not flying
+          if (prev.delivered || !prev.isFlying || prev.eta <= 0) {
+            if (realtimeUpdateRef.current) {
+              clearInterval(realtimeUpdateRef.current);
+              realtimeUpdateRef.current = undefined;
+            }
+            return prev;
+          }
+
+          // Simulate receiving update from backend API
+          // Calculate expected progress based on elapsed time
+          const elapsedMinutes = prev.initialEta - prev.eta;
+          const totalMinutes = prev.initialEta;
+          const expectedProgress = (elapsedMinutes / totalMinutes) * 100;
+          
+          // Add small random variation to simulate real backend updates (±0.5%)
+          const variation = (Math.random() - 0.5) * 1;
+          const newProgress = Math.min(100, Math.max(prev.progress, expectedProgress + variation));
+          
+          // Calculate new ETA based on progress (more conservative to avoid conflicts with main timer)
+          const progressIncrease = newProgress - prev.progress;
+          const newEta = Math.max(0, Math.floor(prev.eta - (progressIncrease / 100) * prev.initialEta));
+          const newStep = Math.floor(newProgress / 25); // 4 steps total
+          
+          // Log realtime update for debugging
+          console.info(`[DroneRealtime] Updating progress: ${Math.round(newProgress)}% | ETA: ${newEta} phút | Order: ${orderId}`);
+          
+          // Only update if progress has meaningfully changed (avoid unnecessary state updates)
+          if (Math.abs(newProgress - prev.progress) < 0.1 && Math.abs(newEta - prev.eta) < 1) {
+            return prev;
+          }
+          
+          return {
+            ...prev,
+            eta: newEta,
+            progress: newProgress,
+            currentStep: newStep,
+            isFlying: true,
+            delivered: false
+          };
+        });
+      }, 4000); // Update every 4 seconds (simulating backend polling)
+      
+      return () => {
+        if (realtimeUpdateRef.current) {
+          clearInterval(realtimeUpdateRef.current);
+          realtimeUpdateRef.current = undefined;
+          console.info(`[DroneRealtime] Stopped realtime simulation for order: ${orderId}`);
+        }
+      };
+    } else {
+      // Clean up interval if drone is not active
+      if (realtimeUpdateRef.current) {
+        clearInterval(realtimeUpdateRef.current);
+        realtimeUpdateRef.current = undefined;
+      }
+    }
+  }, [isActive, droneState.isFlying, droneState.delivered, droneState.initialEta, orderId]);
 
   // Animate drone movement along flight path
   useEffect(() => {

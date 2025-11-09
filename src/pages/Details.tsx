@@ -128,7 +128,14 @@ const Details: React.FC = () => {
       return;
     }
 
-    add(product.id, qty, { name: product.name, image: getProductImage(product), price: product.price }); 
+    // Include restaurant information when adding to cart
+    add(product.id, qty, { 
+      name: product.name, 
+      image: getProductImage(product), 
+      price: product.price,
+      restaurant: product.restaurant,
+      restaurantId: product.restaurant === "SweetDreams" ? "rest_2" : "rest_1"
+    }); 
     toast.success('🛒 Đã thêm vào giỏ hàng thành công!'); 
   };
   
@@ -152,7 +159,14 @@ const Details: React.FC = () => {
       return;
     }
 
-    add(product.id, qty, { name: product.name, image: getProductImage(product), price: product.price }); 
+    // Include restaurant information when adding to cart
+    add(product.id, qty, { 
+      name: product.name, 
+      image: getProductImage(product), 
+      price: product.price,
+      restaurant: product.restaurant,
+      restaurantId: product.restaurant === "SweetDreams" ? "rest_2" : "rest_1"
+    }); 
     navigate('/checkout'); 
   };
 

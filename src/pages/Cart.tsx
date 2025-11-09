@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { useCart } from '@/context/CartContext';
+import { useCart, CartItem } from '@/context/CartContext';
 import { useAuth } from '@/context';
 import { products } from '../data/products';
 import { formatVND } from '../utils/currency';
@@ -84,12 +84,63 @@ const EmptyState = styled.div`
   color: var(--secondaryText);
 `;
 
+const RestaurantGroup = styled.div`
+  margin-bottom: 32px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+`;
+
+const RestaurantHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+`;
+
+const RestaurantName = styled.h3`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+`;
+
+// [Multi-Restaurant Cart] Helper function to group cart items by restaurant
+function getGroupedCartItems(cartItems: CartItem[]): Record<string, { restaurantId?: string; restaurant?: string; items: CartItem[] }> {
+  const grouped: Record<string, { restaurantId?: string; restaurant?: string; items: CartItem[] }> = {};
+  
+  cartItems.forEach(item => {
+    // Use restaurant name as key, fallback to restaurantId, or "unknown" if neither exists
+    const key = item.restaurant || item.restaurantId || 'unknown';
+    
+    if (!grouped[key]) {
+      grouped[key] = {
+        restaurantId: item.restaurantId,
+        restaurant: item.restaurant,
+        items: []
+      };
+    }
+    
+    grouped[key].items.push(item);
+  });
+  
+  return grouped;
+}
+
 const Cart: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { items, remove, setQty, subtotal } = useCart();
+  const { items, remove, setQty, subtotal, clear } = useCart();
   const productMap = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), []);
   const [loading, setLoading] = useState(true);
+  
+  // [Multi-Restaurant Cart] Group items by restaurant
+  const groupedItems = useMemo(() => getGroupedCartItems(items), [items]);
+  const restaurantKeys = Object.keys(groupedItems);
+  const hasMultipleRestaurants = restaurantKeys.length > 1;
   
   const delivery = 25000; // 25,000 VND
   const tax = subtotal * 0.08;
@@ -105,8 +156,23 @@ const Cart: React.FC = () => {
     toast.success(`📦 Cập nhật số lượng "${itemName}" thành ${newQty}`);
   };
 
-  const handleProceedToCheckout = () => {
-    if (items.length === 0) {
+  // [Multi-Restaurant Cart] Calculate totals for a specific restaurant's items
+  const calculateRestaurantTotals = (restaurantItems: CartItem[]) => {
+    const restaurantSubtotal = restaurantItems.reduce((sum, item) => {
+      const price = Number(item.price) || 0;
+      const qty = Number(item.qty) || 0;
+      return sum + price * qty;
+    }, 0);
+    const restaurantTax = restaurantSubtotal * 0.08;
+    const restaurantDelivery = 25000;
+    const restaurantTotal = restaurantSubtotal + restaurantTax + restaurantDelivery;
+    return { restaurantSubtotal, restaurantTax, restaurantDelivery, restaurantTotal };
+  };
+
+  const handleProceedToCheckout = (restaurantItems?: CartItem[]) => {
+    const itemsToCheckout = restaurantItems || items;
+    
+    if (itemsToCheckout.length === 0) {
       toast.error('Giỏ hàng trống! Vui lòng thêm sản phẩm trước khi thanh toán.');
       return;
     }
@@ -116,6 +182,22 @@ const Cart: React.FC = () => {
       toast.success('📝 Vui lòng điền thông tin khách hàng...');
       navigate('/customer-info');
       return;
+    }
+    
+    // [Multi-Restaurant Cart] Show warning if multiple restaurants exist and user tries to checkout all
+    if (!restaurantItems && hasMultipleRestaurants) {
+      toast("Bạn đang đặt món từ nhiều nhà hàng. Vui lòng thanh toán từng nhà hàng riêng biệt.", {
+        icon: "⚠️",
+        duration: 4000
+      });
+      return;
+    }
+    
+    // [Multi-Restaurant Cart] Store selected items in sessionStorage for checkout page
+    if (restaurantItems) {
+      sessionStorage.setItem('checkoutItems', JSON.stringify(restaurantItems));
+    } else {
+      sessionStorage.removeItem('checkoutItems');
     }
     
     toast.success('🚀 Chuyển đến trang thanh toán...');
@@ -153,65 +235,127 @@ const Cart: React.FC = () => {
   return (
     <Page>
       <Title>Giỏ hàng</Title>
-      {items.map((c, index) => {
-        const p = productMap[c.id];
-        if (!p) return null;
+      
+      {/* [Multi-Restaurant Cart] Show warning if multiple restaurants */}
+      {hasMultipleRestaurants && (
+        <div style={{ 
+          marginBottom: 16, 
+          padding: 12, 
+          background: '#fff3cd', 
+          border: '1px solid #ffc107', 
+          borderRadius: '8px',
+          color: '#856404'
+        }}>
+          ⚠️ Bạn đang đặt món từ {restaurantKeys.length} nhà hàng khác nhau. Vui lòng thanh toán từng nhà hàng riêng biệt.
+        </div>
+      )}
+      
+      {/* [Multi-Restaurant Cart] Render items grouped by restaurant */}
+      {restaurantKeys.map((restaurantKey, groupIndex) => {
+        const group = groupedItems[restaurantKey];
+        const restaurantName = group.restaurant || group.restaurantId || 'Nhà hàng';
+        const { restaurantSubtotal, restaurantTax, restaurantDelivery, restaurantTotal } = calculateRestaurantTotals(group.items);
+        
         return (
-          <motion.div
-            key={c.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Row>
-              <Thumb 
-                src={c.image || ''} 
-                alt={c.name} 
-                onError={(e) => { 
-                  (e.currentTarget.src = 'https://via.placeholder.com/80x80?text=No+Image'); 
-                }} 
-              />
-              <div style={{ flex: 1 }}>
-                <Name>{c.name}</Name>
-                <Sub>
-                  {formatVND(c.price)} • Số lượng:
-                  <QtyBtn onClick={() => handleQuantityChange(c.id, Math.max(1, c.qty - 1), c.name)} style={{ marginLeft: 8 }}>
-                    -
-                  </QtyBtn>
-                  <span style={{ margin: '0 8px' }}>{c.qty}</span>
-                  <QtyBtn onClick={() => handleQuantityChange(c.id, c.qty + 1, c.name)}>+</QtyBtn>
-                </Sub>
+          <RestaurantGroup key={restaurantKey}>
+            <RestaurantHeader>
+              <RestaurantName>🍽️ {restaurantName}</RestaurantName>
+              <div style={{ fontSize: '14px', color: 'var(--secondaryText)' }}>
+                {group.items.length} món
               </div>
-              <div style={{ fontWeight: 700 }}>{formatVND(c.price * c.qty)}</div>
-              <Button onClick={() => handleRemoveItem(c.id, c.name)} style={{ background: 'var(--border)', color: 'var(--text)' }}>
-                Xóa
+            </RestaurantHeader>
+            
+            {group.items.map((c, index) => {
+              const p = productMap[c.id];
+              if (!p) return null;
+              return (
+                <motion.div
+                  key={c.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: (groupIndex * 100 + index) * 0.1 }}
+                >
+                  <Row>
+                    <Thumb 
+                      src={c.image || ''} 
+                      alt={c.name} 
+                      onError={(e) => { 
+                        (e.currentTarget.src = 'https://via.placeholder.com/80x80?text=No+Image'); 
+                      }} 
+                    />
+                    <div style={{ flex: 1 }}>
+                      <Name>{c.name}</Name>
+                      <Sub>
+                        {formatVND(c.price)} • Số lượng:
+                        <QtyBtn onClick={() => handleQuantityChange(c.id, Math.max(1, c.qty - 1), c.name)} style={{ marginLeft: 8 }}>
+                          -
+                        </QtyBtn>
+                        <span style={{ margin: '0 8px' }}>{c.qty}</span>
+                        <QtyBtn onClick={() => handleQuantityChange(c.id, c.qty + 1, c.name)}>+</QtyBtn>
+                      </Sub>
+                    </div>
+                    <div style={{ fontWeight: 700 }}>{formatVND(c.price * c.qty)}</div>
+                    <Button onClick={() => handleRemoveItem(c.id, c.name)} style={{ background: 'var(--border)', color: 'var(--text)' }}>
+                      Xóa
+                    </Button>
+                  </Row>
+                </motion.div>
+              );
+            })}
+            
+            {/* [Multi-Restaurant Cart] Per-restaurant checkout section */}
+            <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Tạm tính</span>
+                <span>{formatVND(restaurantSubtotal)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Thuế (8%)</span>
+                <span>{formatVND(restaurantTax)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Phí giao hàng</span>
+                <span>{formatVND(restaurantDelivery)}</span>
+              </div>
+              <TotalBar>
+                <div>Tổng cộng ({restaurantName})</div>
+                <Total>{formatVND(restaurantTotal)}</Total>
+              </TotalBar>
+              <Button 
+                style={{ marginTop: 12, width: '100%' }} 
+                onClick={() => handleProceedToCheckout(group.items)}
+              >
+                Thanh toán {restaurantName}
               </Button>
-            </Row>
-          </motion.div>
+            </div>
+          </RestaurantGroup>
         );
       })}
       
-      <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Tạm tính</span>
-          <span>{formatVND(subtotal)}</span>
+      {/* [Multi-Restaurant Cart] Show global checkout button only if single restaurant */}
+      {!hasMultipleRestaurants && restaurantKeys.length === 1 && (
+        <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Tạm tính</span>
+            <span>{formatVND(subtotal)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Thuế (8%)</span>
+            <span>{formatVND(tax)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Phí giao hàng</span>
+            <span>{formatVND(delivery)}</span>
+          </div>
+          <TotalBar>
+            <div>Tổng cộng</div>
+            <Total>{formatVND(total)}</Total>
+          </TotalBar>
+          <Button style={{ marginTop: 12, width: '100%' }} onClick={() => handleProceedToCheckout()}>
+            Thanh toán tất cả
+          </Button>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Thuế (8%)</span>
-          <span>{formatVND(tax)}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span>Phí giao hàng</span>
-          <span>{formatVND(delivery)}</span>
-        </div>
-        <TotalBar>
-          <div>Tổng cộng</div>
-          <Total>{formatVND(total)}</Total>
-        </TotalBar>
-        <Button style={{ marginTop: 12 }} onClick={handleProceedToCheckout}>
-          Tiến hành thanh toán
-        </Button>
-      </div>
+      )}
     </Page>
   );
 };
