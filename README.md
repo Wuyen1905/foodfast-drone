@@ -1,5 +1,6 @@
 ﻿## ĐỒ ÁN: FoodFast Drone Delivery (Giao đồ ăn bằng Drone)
  Môn: Công nghệ phần mềm (CNPM)
+ 
 Vai trò: Phân tích yêu cầu, thiết kế, lập trình Front-end, viết tài liệu báo cáo
 ###  Giới thiệu
 Đồ án mô phỏng hệ thống đặt món ăn trực tuyến và giao hàng bằng drone của nhà hàng, được phát triển bằng React.js và React Native.  
@@ -158,6 +159,7 @@ Mỗi nhà hàng có drone riêng, chỉ giao đơn thuộc nhà hàng đó.
 Không gom đơn nhiều nhà hàng trong cùng một giao dịch thanh toán.
 
 Ứng dụng có thể truy cập qua LAN để dùng trên điện thoại.
+
 
 
 
