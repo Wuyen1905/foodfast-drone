@@ -1,0 +1,45 @@
+# -----------------------
+# Node.js & React Native
+# -----------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+#package-lock.json
+# Nếu bạn muốn giữ lock file thì xóa dòng package-lock.json ở trên đi, nhưng thường người mới hay bị conflict nên mình tạm ẩn.
+
+# -----------------------
+# Flutter
+# -----------------------
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+.pub-cache/
+.pub/
+
+# -----------------------
+# Android (Cực quan trọng để tránh lỗi khi chạy máy khác)
+# -----------------------
+android/local.properties
+android/.gradle
+android/app/build
+*.jks
+*.keystore
+
+# -----------------------
+# iOS
+# -----------------------
+ios/Flutter/ephemeral/
+ios/Pods/
+ios/.symlinks/
+DerivedData/
+
+# -----------------------
+# IDE & Hệ điều hành (File rác của VSCode, Mac, Windows)
+# -----------------------
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
