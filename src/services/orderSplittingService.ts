@@ -56,26 +56,49 @@ const calculateTax = (subtotal: number): number => {
 };
 
 /**
+ * Map normalized restaurant ID to db.json restaurant ID
+ * db.json uses: "rest_2" for SweetDreams, "restaurant_2" for Aloha
+ */
+const mapToDbRestaurantId = (normalizedId: string): string => {
+  const dbIdMap: Record<string, string> = {
+    'sweetdreams': 'rest_2',
+    'aloha': 'restaurant_2',
+    'rest_2': 'rest_2',
+    'restaurant_2': 'restaurant_2',
+  };
+  return dbIdMap[normalizedId.toLowerCase()] || normalizedId;
+};
+
+/**
  * Group cart items by restaurant ID
  */
 export const groupItemsByRestaurant = (items: CartItem[]): Map<string, CartItem[]> => {
   const grouped = new Map<string, CartItem[]>();
 
   for (const item of items) {
-    const restaurantId = getRestaurantIdFromProductId(item.id);
+    // [Restore Full Checkout] Use restaurantId from cart item if available, otherwise determine from product ID
+    let restaurantId: string | null = item.restaurantId || null;
+    
+    if (!restaurantId) {
+      // Fallback: determine restaurant ID from product ID
+      restaurantId = getRestaurantIdFromProductId(item.id);
+    }
     
     if (!restaurantId) {
       console.warn(`Could not determine restaurant for item ${item.id}, skipping`);
       continue;
     }
 
+    // Normalize restaurant ID (handles 'sweetdreams', 'aloha', etc.)
     const normalizedId = normalizeRestaurantId(restaurantId);
+    // Map to db.json restaurant ID format (rest_2, restaurant_2)
+    const dbRestaurantId = mapToDbRestaurantId(normalizedId);
     
-    if (!grouped.has(normalizedId)) {
-      grouped.set(normalizedId, []);
+    if (!grouped.has(dbRestaurantId)) {
+      grouped.set(dbRestaurantId, []);
     }
     
-    grouped.get(normalizedId)!.push(item);
+    grouped.get(dbRestaurantId)!.push(item);
   }
 
   return grouped;
@@ -88,7 +111,7 @@ export const splitOrdersByRestaurant = (
   items: CartItem[],
   deliveryFeePerOrder: number = 25000
 ): OrderSplitResult => {
-  // Group items by restaurant
+  // Group items by restaurant (returns db.json format restaurant IDs: rest_2, restaurant_2)
   const groupedItems = groupItemsByRestaurant(items);
   
   // Generate payment session ID (links all orders together)
@@ -110,7 +133,7 @@ export const splitOrdersByRestaurant = (
     const total = subtotal + deliveryFee + tax;
 
     splitOrders.push({
-      restaurantId,
+      restaurantId, // This is now in db.json format: rest_2 or restaurant_2
       items: restaurantItems,
       subtotal,
       deliveryFee,

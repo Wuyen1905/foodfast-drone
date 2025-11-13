@@ -1,3 +1,7 @@
+// Fix SockJS "global is not defined" error
+// Polyfill global object for browser environment (required by SockJS)
+(window as any).global = window;
+
 import React, { useMemo } from "react";
 import ReactDOM from "react-dom/client";
 import { ThemeProvider } from "styled-components";

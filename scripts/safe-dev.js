@@ -8,6 +8,8 @@
 import { spawn, exec } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import http from 'http';
+import { isPortInUse, freePort, findAvailablePort } from './port-utils.js';
 
 // Color codes for console output
 const colors = {
@@ -38,6 +40,7 @@ class SafeDevServer {
     this.startTime = Date.now();
     this.viteProcess = null;
     this.cleanupDone = false;
+    this.vitePort = 5173; // Default port, will be updated if Vite uses a different one
   }
 
   log(message, type = 'info') {
@@ -104,6 +107,82 @@ class SafeDevServer {
     this.log('Dependencies validated', 'success');
   }
 
+  async checkBackend(maxRetries = 5, retryDelay = 2000) {
+    this.log('Checking backend connection...', 'info');
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const isConnected = await new Promise((resolve) => {
+        const request = http.get('http://localhost:5000/api/health', { timeout: 2000 }, (res) => {
+          if (res.statusCode === 200) {
+            this.log('Backend is running on port 5000', 'success');
+            resolve(true);
+          } else {
+            this.log(`Backend returned status ${res.statusCode}`, 'warning');
+            resolve(false);
+          }
+        });
+
+        request.on('error', (err) => {
+          if (err.code === 'ECONNREFUSED') {
+            if (attempt < maxRetries) {
+              this.log(`Backend not ready (attempt ${attempt}/${maxRetries}), retrying in ${retryDelay/1000}s...`, 'warning');
+            } else {
+              this.log('Backend not running. Start Spring Boot first: cd backend && mvn spring-boot:run', 'warning');
+            }
+          } else {
+            this.log(`Backend connection error: ${err.message}`, 'warning');
+          }
+          resolve(false);
+        });
+
+        request.on('timeout', () => {
+          if (attempt < maxRetries) {
+            this.log(`Backend connection timeout (attempt ${attempt}/${maxRetries}), retrying...`, 'warning');
+          } else {
+            this.log('Backend connection timeout. Is Spring Boot running?', 'warning');
+          }
+          request.destroy();
+          resolve(false);
+        });
+
+        request.setTimeout(2000);
+      });
+
+      if (isConnected) {
+        return true;
+      }
+
+      // Wait before retrying (except on last attempt)
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+    }
+
+    return false;
+  }
+
+  async checkAndFreePort(port) {
+    this.log(`Checking if port ${port} is available...`, 'info');
+    
+    const inUse = await isPortInUse(port);
+    if (inUse) {
+      this.log(`Port ${port} is in use, attempting to free it...`, 'warning');
+      const freed = await freePort(port);
+      if (freed) {
+        this.log(`Successfully freed port ${port}`, 'success');
+        // Wait a moment for the port to be fully released
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return true;
+      } else {
+        this.log(`Could not free port ${port}, will try next available port`, 'warning');
+        return false;
+      }
+    }
+    
+    this.log(`Port ${port} is available`, 'success');
+    return true;
+  }
+
   async runCommand(command, args = []) {
     return new Promise((resolve, reject) => {
       const process = spawn(command, args, { 
@@ -138,12 +217,23 @@ class SafeDevServer {
       const output = data.toString();
       outputBuffer += output;
       
+      // Extract port number from Vite output
+      // Vite outputs: "Local:   http://localhost:5173/" or "Local:   http://127.0.0.1:5174/"
+      const portMatch = output.match(/Local:\s+http:\/\/[^:]+:(\d+)/);
+      if (portMatch) {
+        const detectedPort = parseInt(portMatch[1]);
+        if (detectedPort !== this.vitePort) {
+          this.vitePort = detectedPort;
+          this.log(`Vite is running on port ${this.vitePort}`, 'info');
+        }
+      }
+      
       // Check for server ready indicators
       if (output.includes('Local:') || output.includes('ready in')) {
         if (!serverStarted) {
           serverStarted = true;
           this.log('Development server started successfully!', 'success');
-          this.log('Server is ready for development', 'success');
+          this.log(`Server is ready at http://localhost:${this.vitePort}`, 'success');
         }
       }
       
@@ -247,7 +337,16 @@ class SafeDevServer {
       // Step 2: Validate dependencies
       await this.validateDependencies();
       
-      // Step 3: Start Vite with timeout protection
+      // Step 3: Check and free port 5173 if needed
+      const portFreed = await this.checkAndFreePort(5173);
+      if (!portFreed) {
+        this.log('Port 5173 is in use and could not be freed. Vite will use the next available port.', 'warning');
+      }
+      
+      // Step 4: Check backend connection with retry logic (optional, won't fail if backend is down)
+      await this.checkBackend(5, 2000);
+      
+      // Step 5: Start Vite with timeout protection
       this.startVite();
       
       // Handle process termination

@@ -216,7 +216,7 @@ const ErrorState = styled.div`
 const OrderConfirmation: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { orders, getOrdersByPaymentSession } = useOrders();
+  const { orders, getOrdersByPaymentSession, refreshOrders } = useOrders();
   const [order, setOrder] = useState<Order | null>(null);
   const [allSessionOrders, setAllSessionOrders] = useState<Order[]>([]);
   const [restaurantNames, setRestaurantNames] = useState<Record<string, string>>({});
@@ -225,6 +225,16 @@ const OrderConfirmation: React.FC = () => {
   const orderId = searchParams.get('orderId');
   const paymentSessionId = searchParams.get('paymentSessionId');
 
+  // [Fix Order Creation] Refresh orders when component mounts or orderId changes
+  useEffect(() => {
+    if (orderId) {
+      refreshOrders().catch(error => {
+        console.error('Error refreshing orders:', error);
+      });
+    }
+  }, [orderId, refreshOrders]);
+
+  // [Fix Order Creation] Update order display when orders change
   useEffect(() => {
     const loadOrders = async () => {
       if (!orderId) {

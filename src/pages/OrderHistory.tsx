@@ -212,7 +212,7 @@ interface OrderWithRestaurant extends Order {
 const OrderHistory: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { orders, getOrdersByUserId } = useOrders();
+  const { orders, getOrdersByUserId, refreshOrders, isLoading } = useOrders();
   const [userOrders, setUserOrders] = useState<OrderWithRestaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [visibleDroneOrder, setVisibleDroneOrder] = useState<string | null>(null);
@@ -221,6 +221,16 @@ const OrderHistory: React.FC = () => {
     setVisibleDroneOrder(prev => (prev === orderId ? null : orderId));
   };
 
+  // [Fix Order Creation] Refresh orders when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      refreshOrders().catch(error => {
+        console.error('Error refreshing orders:', error);
+      });
+    }
+  }, [user, refreshOrders]);
+
+  // [Fix Order Creation] Update user orders when orders change
   useEffect(() => {
     const loadOrders = async () => {
       if (!user) {
@@ -230,11 +240,11 @@ const OrderHistory: React.FC = () => {
 
       try {
         // Get orders for the logged-in user
-        const orders = getOrdersByUserId(user.id);
+        const userOrdersList = getOrdersByUserId(user.id);
         
         // Fetch restaurant names for each order
         const ordersWithRestaurants = await Promise.all(
-          orders.map(async (order) => {
+          userOrdersList.map(async (order) => {
             let restaurantName = '';
             if (order.restaurantId) {
               try {
@@ -322,7 +332,8 @@ const OrderHistory: React.FC = () => {
     );
   }
 
-  if (loading) {
+  // Show loading state if context is loading or local loading
+  if (loading || isLoading) {
     return (
       <Container>
         <LoadingState>Đang tải lịch sử đơn hàng...</LoadingState>

@@ -70,9 +70,9 @@ const Label = styled.label`
   font-size: 14px;
 `;
 
-const Input = styled.input<{ hasError?: boolean }>`
+const Input = styled.input<{ $hasError?: boolean }>`
   padding: 12px 16px;
-  border: 2px solid ${props => props.hasError ? '#dc3545' : 'var(--border)'};
+  border: 2px solid ${props => props.$hasError ? '#dc3545' : 'var(--border)'};
   border-radius: 8px;
   background: var(--card);
   color: var(--text);
@@ -81,14 +81,14 @@ const Input = styled.input<{ hasError?: boolean }>`
   
   &:focus {
     outline: none;
-    border-color: ${props => props.hasError ? '#dc3545' : 'var(--primary)'};
-    box-shadow: 0 0 0 3px ${props => props.hasError ? 'rgba(220, 53, 69, 0.1)' : 'rgba(255, 102, 0, 0.1)'};
+    border-color: ${props => props.$hasError ? '#dc3545' : 'var(--primary)'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(220, 53, 69, 0.1)' : 'rgba(255, 102, 0, 0.1)'};
   }
 `;
 
-const Select = styled.select<{ hasError?: boolean }>`
+const Select = styled.select<{ $hasError?: boolean }>`
   padding: 12px 16px;
-  border: 2px solid ${props => props.hasError ? '#dc3545' : 'var(--border)'};
+  border: 2px solid ${props => props.$hasError ? '#dc3545' : 'var(--border)'};
   border-radius: 8px;
   background: var(--card);
   color: var(--text);
@@ -97,14 +97,14 @@ const Select = styled.select<{ hasError?: boolean }>`
   
   &:focus {
     outline: none;
-    border-color: ${props => props.hasError ? '#dc3545' : 'var(--primary)'};
-    box-shadow: 0 0 0 3px ${props => props.hasError ? 'rgba(220, 53, 69, 0.1)' : 'rgba(255, 102, 0, 0.1)'};
+    border-color: ${props => props.$hasError ? '#dc3545' : 'var(--primary)'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(220, 53, 69, 0.1)' : 'rgba(255, 102, 0, 0.1)'};
   }
 `;
 
-const TextArea = styled.textarea<{ hasError?: boolean }>`
+const TextArea = styled.textarea<{ $hasError?: boolean }>`
   padding: 12px 16px;
-  border: 2px solid ${props => props.hasError ? '#dc3545' : 'var(--border)'};
+  border: 2px solid ${props => props.$hasError ? '#dc3545' : 'var(--border)'};
   border-radius: 8px;
   background: var(--card);
   color: var(--text);
@@ -116,8 +116,8 @@ const TextArea = styled.textarea<{ hasError?: boolean }>`
   
   &:focus {
     outline: none;
-    border-color: ${props => props.hasError ? '#dc3545' : 'var(--primary)'};
-    box-shadow: 0 0 0 3px ${props => props.hasError ? 'rgba(220, 53, 69, 0.1)' : 'rgba(255, 102, 0, 0.1)'};
+    border-color: ${props => props.$hasError ? '#dc3545' : 'var(--primary)'};
+    box-shadow: 0 0 0 3px ${props => props.$hasError ? 'rgba(220, 53, 69, 0.1)' : 'rgba(255, 102, 0, 0.1)'};
   }
 `;
 
@@ -283,7 +283,7 @@ const CustomerInfoForm: React.FC = () => {
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                hasError={!!errors.name}
+                $hasError={!!errors.name}
                 placeholder="Nhập họ và tên đầy đủ"
               />
               {errors.name && (
@@ -305,7 +305,7 @@ const CustomerInfoForm: React.FC = () => {
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                hasError={!!errors.email}
+                $hasError={!!errors.email}
                 placeholder="example@email.com"
               />
               {errors.email && (
@@ -327,7 +327,7 @@ const CustomerInfoForm: React.FC = () => {
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
-                hasError={!!errors.phone}
+                $hasError={!!errors.phone}
                 placeholder="0xxxxxxxxx hoặc +84xxxxxxxxx"
               />
               {errors.phone && (
@@ -348,7 +348,7 @@ const CustomerInfoForm: React.FC = () => {
               <Select
                 value={formData.paymentMethod}
                 onChange={(e) => handleInputChange('paymentMethod', e.target.value)}
-                hasError={!!errors.paymentMethod}
+                $hasError={!!errors.paymentMethod}
               >
                 <option value="">Chọn phương thức thanh toán</option>
                 <option value={PAYMENT_METHODS.VNPAY}>💳 VNPay</option>
@@ -373,7 +373,7 @@ const CustomerInfoForm: React.FC = () => {
                 <TextArea
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
-                  hasError={!!errors.address}
+                  $hasError={!!errors.address}
                   placeholder="Số nhà, tên đường, phường/xã, quận/huyện, thành phố"
                 />
                 {errors.address && (
@@ -396,7 +396,7 @@ const CustomerInfoForm: React.FC = () => {
                 <TextArea
                   value={formData.notes}
                   onChange={(e) => handleInputChange('notes', e.target.value)}
-                  hasError={!!errors.notes}
+                  $hasError={!!errors.notes}
                   placeholder="Ghi chú đặc biệt cho đơn hàng..."
                   maxLength={200}
                 />

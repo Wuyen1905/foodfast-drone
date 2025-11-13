@@ -324,11 +324,33 @@ export const getSystemStats = async (): Promise<SystemStats> => {
 
 /**
  * Get restaurant by ID
+ * Handles different restaurant ID formats: rest_2, restaurant_2, sweetdreams, aloha
  */
 export const getRestaurantById = async (id: string): Promise<Restaurant | null> => {
   await simulateDelay();
   
-  const restaurant = mockRestaurants.find(r => r.id === id);
+  if (!id) return null;
+  
+  // Normalize restaurant ID to match mock data format
+  // Map database IDs (rest_2, restaurant_2) to mock data IDs (sweetdreams, aloha)
+  const normalizeRestaurantId = (restaurantId: string): string => {
+    const normalized = restaurantId.toLowerCase().trim();
+    
+    // Map database format to mock data format
+    if (normalized === 'rest_2' || normalized === 'sweetdreams') {
+      return 'sweetdreams';
+    }
+    if (normalized === 'restaurant_2' || normalized === 'aloha' || normalized === 'aloha kitchen') {
+      return 'aloha';
+    }
+    
+    // Return as-is if already in correct format
+    return normalized;
+  };
+  
+  const normalizedId = normalizeRestaurantId(id);
+  const restaurant = mockRestaurants.find(r => r.id === normalizedId || r.id === id);
+  
   if (!restaurant) return null;
   
   return {

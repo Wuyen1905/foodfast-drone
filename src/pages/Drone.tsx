@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/context';
 import { useOrders } from '@/context/OrderContext';
 import { formatVND } from '@/utils/currency';
+import { connectOrderSocket, disconnectOrderSocket } from '@/services/orderSyncService';
 
 const Page = styled.div`
   padding: var(--spacing-xl) var(--spacing-lg);
@@ -217,6 +218,74 @@ const Drone: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [eta, isFlying]);
+
+  // Real-time WebSocket synchronization for order updates
+  useEffect(() => {
+    const handleOrderUpdate = async (orderUpdate: any) => {
+      console.log('[Drone] 📦 WebSocket order update received:', orderUpdate.id, orderUpdate.status);
+      
+      try {
+        // Map API order format to OrderContext format
+        const { mapApiOrderToOrder } = await import('@/services/orderApiService');
+        const mappedOrder = mapApiOrderToOrder(orderUpdate);
+        
+        // Update orders list with mapped order
+        setOrders((prevOrders) => {
+          const exists = prevOrders.find((o) => o.id === mappedOrder.id);
+          const existingOrder = exists ? prevOrders.find((o) => o.id === mappedOrder.id) : null;
+          const updatedOrders = exists
+            ? prevOrders.map((o) => (o.id === mappedOrder.id ? mappedOrder : o))
+            : [...prevOrders, mappedOrder];
+          
+          // Normalize status for comparison
+          const normalizedStatus = mappedOrder.status?.toLowerCase() || '';
+          const existingStatus = existingOrder?.status?.toLowerCase() || '';
+          
+          // If status changed to "Delivering", start drone animation
+          if ((normalizedStatus === "delivering" || normalizedStatus === "đang giao") &&
+              existingStatus !== "delivering" && existingStatus !== "đang giao") {
+            console.log('[Drone] 🛸 Starting drone animation for order:', mappedOrder.id);
+            if (!selectedOrder || selectedOrder.id !== mappedOrder.id) {
+              setSelectedOrder(mappedOrder);
+              startDelivery(mappedOrder);
+            }
+          }
+          
+          // If status changed to "Delivered" or "Completed", stop drone animation immediately
+          if ((normalizedStatus === "delivered" || normalizedStatus === "completed" || normalizedStatus === "đã giao") &&
+              existingStatus !== "delivered" && existingStatus !== "completed" && existingStatus !== "đã giao") {
+            if (selectedOrder && selectedOrder.id === mappedOrder.id) {
+              console.log('[Drone] 🎉 Order delivered, stopping drone animation immediately:', mappedOrder.id);
+              setIsFlying(false);
+              setDelivered(true);
+              setProgress(100);
+              setEta(0);
+              
+              // Show delivery confirmation
+              toast.success('🎉 Đơn hàng đã được giao thành công!', {
+                duration: 5000,
+                icon: '✅'
+              });
+            }
+          }
+          
+          return updatedOrders;
+        });
+      } catch (error) {
+        console.error('[Drone] Error mapping order update:', error);
+        // Fallback: update with raw order update
+        setOrders((prevOrders) => {
+          const exists = prevOrders.find((o) => o.id === orderUpdate.id);
+          return exists
+            ? prevOrders.map((o) => (o.id === orderUpdate.id ? orderUpdate : o))
+            : [...prevOrders, orderUpdate];
+        });
+      }
+    };
+    
+    connectOrderSocket(handleOrderUpdate);
+    return () => disconnectOrderSocket();
+  }, [selectedOrder]);
 
   useEffect(() => {
     // If user is logged in, use their phone

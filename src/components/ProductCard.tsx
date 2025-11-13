@@ -217,12 +217,20 @@ const ProductCard: React.FC<Props> = ({ product, isAdmin, onEdit, onDelete, onAd
       onAddToCart(product);
     } else {
       // Include restaurant information when adding to cart
+      // Map restaurant names to correct IDs: SweetDreams -> rest_2, Aloha -> restaurant_2
+      const getRestaurantId = (restaurantName: string): string => {
+        if (restaurantName === "SweetDreams") return "rest_2";
+        if (restaurantName === "Aloha" || restaurantName === "Aloha Kitchen") return "restaurant_2";
+        // Default fallback (should not happen, but handle gracefully)
+        return "rest_2";
+      };
+      
       add(product.id, 1, { 
         name: product.name, 
         image: img, 
         price: product.price,
         restaurant: product.restaurant,
-        restaurantId: product.restaurant === "SweetDreams" ? "rest_2" : "rest_1"
+        restaurantId: getRestaurantId(product.restaurant || "")
       }); 
       toast.success('🛒 Đã thêm vào giỏ hàng!'); 
     }

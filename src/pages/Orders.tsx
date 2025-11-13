@@ -9,6 +9,7 @@ import ProgressCircle from "../components/ProgressCircle";
 import DroneAnimation from "../components/DroneAnimation";
 import DroneJourney from "../components/DroneJourney";
 import { formatVND } from "../utils/currency";
+import { connectOrderSocket, disconnectOrderSocket } from "@/services/orderSyncService";
 
 const Page = styled.div`
   max-width: 900px;
@@ -279,6 +280,73 @@ const Orders: React.FC = () => {
     }
   }, [isAdmin, orders]);
 
+  // Real-time WebSocket synchronization
+  useEffect(() => {
+    const handleOrderUpdate = async (orderUpdate: any) => {
+      console.log('[Orders] 📦 WebSocket order update received:', orderUpdate.id, orderUpdate.status);
+      
+      try {
+        // Map API order format to OrderContext format
+        const { mapApiOrderToOrder } = await import('@/services/orderApiService');
+        const mappedOrder = mapApiOrderToOrder(orderUpdate);
+        
+        // Update filtered orders with mapped order
+        setFilteredOrders((prevOrders) => {
+          const exists = prevOrders.find((o) => o.id === mappedOrder.id);
+          const existingOrder = exists ? prevOrders.find((o) => o.id === mappedOrder.id) : null;
+          const updatedOrders = exists
+            ? prevOrders.map((o) => (o.id === mappedOrder.id ? mappedOrder : o))
+            : [...prevOrders, mappedOrder];
+          
+          // Normalize status for comparison
+          const normalizedStatus = mappedOrder.status?.toLowerCase() || '';
+          const existingStatus = existingOrder?.status?.toLowerCase() || '';
+          
+          // If status changed to "Delivering", start drone tracking
+          if ((normalizedStatus === "delivering" || normalizedStatus === "đang giao") && 
+              existingStatus !== "delivering" && existingStatus !== "đang giao") {
+            console.log('[Orders] 🛸 Starting drone tracking for order:', mappedOrder.id);
+            startDroneTracking(mappedOrder.id);
+          }
+          
+          // If status changed to "Delivered" or "Completed", stop drone tracking immediately
+          if ((normalizedStatus === "delivered" || normalizedStatus === "completed" || normalizedStatus === "đã giao") &&
+              existingStatus !== "delivered" && existingStatus !== "completed" && existingStatus !== "đã giao") {
+            console.log('[Orders] 🎉 Order delivered - stopping drone tracking:', mappedOrder.id);
+            setDroneStates((prev) => {
+              const newStates = { ...prev };
+              if (newStates[mappedOrder.id]) {
+                // Clear drone state for this order
+                delete newStates[mappedOrder.id];
+              }
+              return newStates;
+            });
+            
+            // Show delivery confirmation toast
+            toast.success(`🎉 Đơn hàng ${mappedOrder.id} đã được giao thành công!`, {
+              duration: 5000,
+              icon: '✅'
+            });
+          }
+          
+          return updatedOrders;
+        });
+      } catch (error) {
+        console.error('[Orders] Error mapping order update:', error);
+        // Fallback: update with raw order update
+        setFilteredOrders((prevOrders) => {
+          const exists = prevOrders.find((o) => o.id === orderUpdate.id);
+          return exists
+            ? prevOrders.map((o) => (o.id === orderUpdate.id ? orderUpdate : o))
+            : [...prevOrders, orderUpdate];
+        });
+      }
+    };
+    
+    connectOrderSocket(handleOrderUpdate);
+    return () => disconnectOrderSocket();
+  }, []);
+
   const displayOrders = isAdmin() ? orders : filteredOrders;
 
   // Enhanced drone tracking component with real-time animation
@@ -287,14 +355,23 @@ const Orders: React.FC = () => {
     const [isAnimationActive, setIsAnimationActive] = useState(false);
 
     // Start animation when order status changes to "Delivering"
+    // Stop animation when order status changes to "Delivered" or "Completed"
     useEffect(() => {
-      if (order.status === "Delivering" && !droneState) {
+      const normalizedStatus = order.status?.toLowerCase() || '';
+      
+      if ((normalizedStatus === "delivering" || normalizedStatus === "đang giao") && !droneState) {
         setIsAnimationActive(true);
         startDroneTracking(order.id);
-      } else if (order.status === "Completed") {
+      } else if (normalizedStatus === "delivered" || normalizedStatus === "completed" || normalizedStatus === "đã giao") {
         setIsAnimationActive(false);
+        // Clear drone state
+        setDroneStates((prev) => {
+          const newStates = { ...prev };
+          delete newStates[order.id];
+          return newStates;
+        });
       }
-    }, [order.status, droneState]);
+    }, [order.status, order.id, droneState]);
 
     const handleDroneComplete = () => {
       updateOrderStatus(order.id, "Completed");
@@ -302,8 +379,41 @@ const Orders: React.FC = () => {
       toast.success("🎉 Đơn hàng đã được giao thành công!");
     };
 
-    // Only show animation for active deliveries or completed orders
-    if (order.status !== "Delivering" && order.status !== "Completed") {
+    // Normalize order status for comparison
+    const normalizedStatus = order.status?.toLowerCase() || '';
+    const isDelivering = normalizedStatus === "delivering" || normalizedStatus === "đang giao";
+    const isDelivered = normalizedStatus === "delivered" || normalizedStatus === "completed" || normalizedStatus === "đã giao";
+    
+    // Show delivery confirmation message if order is delivered (but don't show drone)
+    if (isDelivered) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          style={{ 
+            padding: '20px', 
+            background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)', 
+            borderRadius: '12px', 
+            color: 'white',
+            textAlign: 'center',
+            marginTop: '16px',
+            boxShadow: '0 4px 12px rgba(40, 167, 69, 0.3)'
+          }}
+        >
+          <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
+          <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+            Đơn hàng đã được giao thành công!
+          </div>
+          <div style={{ fontSize: '14px', opacity: 0.9 }}>
+            Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi
+          </div>
+        </motion.div>
+      );
+    }
+    
+    // Only show drone animation for active deliveries
+    if (!isDelivering) {
       return null;
     }
 

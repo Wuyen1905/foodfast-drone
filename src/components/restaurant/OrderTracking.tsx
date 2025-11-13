@@ -11,6 +11,7 @@ import {
   updateOrderStatus as updateOrderStatusService,
   addOrderNote as addOrderNoteService
 } from '@/services/restaurantOrderService';
+import { connectOrderSocket, disconnectOrderSocket } from '@/services/orderSyncService';
 
 interface Theme {
   primary: string;
@@ -362,6 +363,87 @@ const OrderTracking: React.FC<OrderTrackingProps> = ({ restaurantId, theme }) =>
       setFilteredOrders(filtered);
     }
   }, [orders, restaurantId]);
+
+  // Real-time WebSocket synchronization
+  useEffect(() => {
+    const handleOrderUpdate = async (orderUpdate: any) => {
+      console.log('[RestaurantOrderTracking] 📦 WebSocket order update received:', orderUpdate.id, orderUpdate.status);
+      
+      try {
+        // Map API order format to OrderContext format
+        const { mapApiOrderToOrder } = await import('@/services/orderApiService');
+        const mappedOrder = mapApiOrderToOrder(orderUpdate);
+        
+        // Check if order belongs to this restaurant
+        const normalizeId = (id: string) => {
+          const map: Record<string, string> = {
+            'rest_2': 'sweetdreams',
+            'restaurant_2': 'aloha',
+            'sweetdreams': 'sweetdreams',
+            'aloha': 'aloha',
+          };
+          return map[id?.toLowerCase()] || id;
+        };
+        
+        const normalizedRestaurantId = normalizeId(restaurantId);
+        const orderRestaurantId = mappedOrder.restaurantId ? normalizeId(mappedOrder.restaurantId) : null;
+        
+        // Only update if order belongs to this restaurant
+        if (orderRestaurantId === normalizedRestaurantId) {
+          setRestaurantOrders((prevOrders: any[]) => {
+            const exists = prevOrders.find((o: any) => o.id === mappedOrder.id);
+            return exists
+              ? prevOrders.map((o: any) => (o.id === mappedOrder.id ? mappedOrder : o))
+              : [...prevOrders, mappedOrder];
+          });
+          
+          setFilteredOrders((prevOrders: any[]) => {
+            const exists = prevOrders.find((o: any) => o.id === mappedOrder.id);
+            return exists
+              ? prevOrders.map((o: any) => (o.id === mappedOrder.id ? mappedOrder : o))
+              : [...prevOrders, mappedOrder];
+          });
+          
+          // Note: OrderContext will also receive this update via its own WebSocket subscription
+          // No need to call updateOrderStatus here to avoid duplicate API calls
+        }
+      } catch (error) {
+        console.error('[RestaurantOrderTracking] Error mapping order update:', error);
+        // Fallback: update with raw order update if mapping fails
+        const normalizeId = (id: string) => {
+          const map: Record<string, string> = {
+            'rest_2': 'sweetdreams',
+            'restaurant_2': 'aloha',
+            'sweetdreams': 'sweetdreams',
+            'aloha': 'aloha',
+          };
+          return map[id?.toLowerCase()] || id;
+        };
+        
+        const normalizedRestaurantId = normalizeId(restaurantId);
+        const orderRestaurantId = orderUpdate.restaurantId ? normalizeId(orderUpdate.restaurantId) : null;
+        
+        if (orderRestaurantId === normalizedRestaurantId) {
+          setRestaurantOrders((prevOrders: any[]) => {
+            const exists = prevOrders.find((o: any) => o.id === orderUpdate.id);
+            return exists
+              ? prevOrders.map((o: any) => (o.id === orderUpdate.id ? orderUpdate : o))
+              : [...prevOrders, orderUpdate];
+          });
+          
+          setFilteredOrders((prevOrders: any[]) => {
+            const exists = prevOrders.find((o: any) => o.id === orderUpdate.id);
+            return exists
+              ? prevOrders.map((o: any) => (o.id === orderUpdate.id ? orderUpdate : o))
+              : [...prevOrders, orderUpdate];
+          });
+        }
+      }
+    };
+    
+    connectOrderSocket(handleOrderUpdate);
+    return () => disconnectOrderSocket();
+  }, [restaurantId]);
 
   // Listen for new order notifications
   useEffect(() => {

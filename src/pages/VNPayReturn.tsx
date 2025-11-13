@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import styled from 'styled-components';
 import { validateVNPayCallback } from '../services/vnpay';
 import { useOrders } from '@/context/OrderContext';
+import type { Order } from '@/context/OrderContext';
+import { createOrdersFromSplit } from '../services/orderSplittingService';
 import toast from 'react-hot-toast';
 import { formatVND } from '../utils/currency';
 
@@ -89,7 +91,7 @@ const LoadingSpinner = styled(motion.div)`
 const VNPayReturn: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { updateOrderPaymentStatus } = useOrders();
+  const { addOrder, addOrders, updateOrderPaymentStatus, refreshOrders } = useOrders();
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<{
     success: boolean;
@@ -113,23 +115,85 @@ const VNPayReturn: React.FC = () => {
             transactionId: validation.transactionId
           });
           
-          // Update order payment status if transaction ID and order ID exist
-          if (validation.transactionId && validation.orderId) {
-            updateOrderPaymentStatus(validation.orderId, 'completed', validation.transactionId);
-          }
-          
-          // Check if there's a pending order in sessionStorage (from checkout)
+          // [Restore Full Checkout] Check if there's a pending order in sessionStorage (from checkout)
           const pendingOrderData = sessionStorage.getItem('vnpay_pending_order');
           if (pendingOrderData) {
             try {
-              const orderData = JSON.parse(pendingOrderData);
-              // Orders should have been created in checkout, but if not, create them here
-              // This is a safety fallback
-              console.log('[VNPay Return] Pending order data found:', orderData);
-              // Clear pending order data
+              const storedData = JSON.parse(pendingOrderData);
+              console.log('[VNPay Return] Pending order data found:', storedData);
+              
+              // [Restore Full Checkout] Handle both single order and split orders
+              if (storedData.order) {
+                // Single order format
+                try {
+                  const orderToCreate: Order = {
+                    ...storedData.order,
+                    paymentStatus: 'completed' as const,
+                    vnpayTransactionId: validation.transactionId,
+                  };
+                  
+                  console.log('[VNPay Return] Creating single order from pending order data...');
+                  
+                  // Save single order to API
+                  await addOrder(orderToCreate);
+                  
+                  // [Fix 500 Error] Order creation succeeded (addOrder handles errors internally)
+                  console.log(`[SYNC OK ✅] VNPay Return created single order in shared API:`, orderToCreate.id);
+                  
+                  // Refresh orders to ensure they're in context
+                  await refreshOrders();
+                } catch (error: any) {
+                  // [Fix 500 Error] Handle order creation error gracefully
+                  // addOrder already handles errors and adds order locally
+                  console.error('[VNPay Return] API Error: Order creation failed, using local fallback');
+                  await refreshOrders();
+                }
+              } else if (storedData.splitResult) {
+                // Split orders format (multiple restaurants)
+                try {
+                  console.log('[VNPay Return] Creating multiple orders from split result...');
+                  
+                  // Create orders from split result with payment information
+                  const createdOrders = createOrdersFromSplit(storedData.splitResult, {
+                    name: storedData.name,
+                    phone: storedData.phone,
+                    address: storedData.address,
+                    items: storedData.items,
+                    paymentMethod: 'vnpay',
+                    paymentStatus: 'completed',
+                    vnpayTransactionId: validation.transactionId,
+                    userId: storedData.userId,
+                    note: storedData.note
+                  });
+                  
+                  // Save orders to API
+                  await addOrders(createdOrders);
+                  
+                  // [Fix 500 Error] Order creation succeeded (addOrders handles errors internally)
+                  console.log(`[SYNC OK ✅] VNPay Return created ${createdOrders.length} order(s) in shared API:`, createdOrders.map(o => o.id).join(', '));
+                  
+                  // Refresh orders to ensure they're in context
+                  await refreshOrders();
+                } catch (error: any) {
+                  // [Fix 500 Error] Handle order creation error gracefully
+                  // addOrders already handles errors and adds orders locally
+                  console.error('[VNPay Return] API Error: Order creation failed, using local fallback');
+                  await refreshOrders();
+                }
+              } else {
+                console.warn('[VNPay Return] No valid order data found in pending order');
+              }
+              
+              // Clear pending order data after processing
               sessionStorage.removeItem('vnpay_pending_order');
             } catch (err) {
               console.error('[VNPay Return] Error processing pending order:', err);
+              toast.error('Có lỗi xảy ra khi tạo đơn hàng. Vui lòng liên hệ hỗ trợ.');
+            }
+          } else {
+            // [Restore Full Checkout] No pending order data - try to update existing order
+            if (validation.transactionId && validation.orderId) {
+              await updateOrderPaymentStatus(validation.orderId, 'completed', validation.transactionId);
             }
           }
           
@@ -172,11 +236,18 @@ const VNPayReturn: React.FC = () => {
     };
 
     processPayment();
-  }, [searchParams, updateOrderPaymentStatus]);
+  }, [searchParams, addOrder, addOrders, updateOrderPaymentStatus, refreshOrders]);
 
   const handleContinue = () => {
     if (result?.success) {
-      navigate('/orders');
+      // [Fix Order Creation] Navigate to order history page
+      // Refresh orders before navigation to ensure they're loaded
+      refreshOrders().then(() => {
+        navigate('/order-history');
+      }).catch(() => {
+        // If refresh fails, still navigate - orders should be in API
+        navigate('/order-history');
+      });
     } else {
       navigate('/checkout');
     }
@@ -244,7 +315,7 @@ const VNPayReturn: React.FC = () => {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          {result?.success ? 'Xem đơn hàng' : 'Thử lại'}
+          {result?.success ? 'Xem lịch sử đơn hàng' : 'Thử lại'}
         </Button>
       </Card>
     </Container>

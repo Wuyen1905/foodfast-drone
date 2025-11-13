@@ -9,6 +9,7 @@ import { formatVND, formatOrderTotal } from "../utils/currency";
 import { APP_CONFIG, ORDER_STATUS, PAYMENT_METHODS } from "../constants";
 import DroneJourney from "../components/DroneJourney";
 import { shouldShowDroneTracking } from "../services/orderService";
+import { connectOrderSocket, disconnectOrderSocket } from '@/services/orderSyncService';
 
 // Styled Components
 const Page = styled.div`
@@ -351,6 +352,43 @@ const OrderTracking: React.FC = () => {
     }
   }, [isAdmin, orders]);
 
+  // Real-time WebSocket synchronization
+  useEffect(() => {
+    const handleOrderUpdate = async (orderUpdate: any) => {
+      console.log('[OrderTracking] 📦 WebSocket order update received:', orderUpdate.id, orderUpdate.status);
+      
+      try {
+        // Map API order format to OrderContext format
+        const { mapApiOrderToOrder } = await import('@/services/orderApiService');
+        const mappedOrder = mapApiOrderToOrder(orderUpdate);
+        
+        // Update filtered orders (customer view) with mapped order
+        setFilteredOrders((prevOrders: any[]) => {
+          const exists = prevOrders.find((o: any) => o.id === mappedOrder.id);
+          return exists
+            ? prevOrders.map((o: any) => (o.id === mappedOrder.id ? mappedOrder : o))
+            : [...prevOrders, mappedOrder];
+        });
+        
+        // Update orders in OrderContext directly (don't call updateOrderStatus to avoid API call)
+        // The OrderContext will also receive this update via its own WebSocket subscription
+        // But we update local state here for immediate UI update
+      } catch (error) {
+        console.error('[OrderTracking] Error mapping order update:', error);
+        // Fallback: update with raw order update
+        setFilteredOrders((prevOrders: any[]) => {
+          const exists = prevOrders.find((o: any) => o.id === orderUpdate.id);
+          return exists
+            ? prevOrders.map((o: any) => (o.id === orderUpdate.id ? orderUpdate : o))
+            : [...prevOrders, orderUpdate];
+        });
+      }
+    };
+    
+    connectOrderSocket(handleOrderUpdate);
+    return () => disconnectOrderSocket();
+  }, []);
+
   const displayOrders = isAdmin() ? orders : filteredOrders;
 
   // Auto-hide drone journey when order status changes to completed or cancelled
@@ -398,21 +436,35 @@ const OrderTracking: React.FC = () => {
       }
     }, [order.id]);
 
-    // Start animation when order status changes to "Delivering" or "Đang giao" and has assigned drone
-    useEffect(() => {
-      // Normalize order status for comparison
-      const normalizedStatus = normalizeOrderStatus(order.status);
-      
-      // Use service logic to determine if drone should be shown
-      const shouldShow = shouldShowDroneTracking(order, assignedDrone);
+      // Start animation when order status changes to "Delivering" or "Đang giao" and has assigned drone
+      // Stop animation immediately when order status changes to "Delivered" or "Completed"
+      useEffect(() => {
+        // Normalize order status for comparison
+        const normalizedStatus = normalizeOrderStatus(order.status);
+        const rawStatus = order.status?.toLowerCase() || '';
+        
+        // Check if order is delivered or completed
+        const isDelivered = rawStatus === "delivered" || rawStatus === "completed" || rawStatus === "đã giao";
+        const isCancelled = rawStatus === "cancelled" || rawStatus === "đã hủy";
+        
+        if (isDelivered || isCancelled) {
+          // Immediately stop animation and clear drone state
+          setIsAnimationActive(false);
+          setDroneStates((prev) => {
+            const newStates = { ...prev };
+            delete newStates[order.id];
+            return newStates;
+          });
+        } else {
+          // Use service logic to determine if drone should be shown
+          const shouldShow = shouldShowDroneTracking(order, assignedDrone);
 
-      if (shouldShow && !droneState) {
-        setIsAnimationActive(true);
-        startDroneTracking(order.id);
-      } else if (order.status === ORDER_STATUS.COMPLETED || order.status === 'Cancelled' || normalizedStatus === 'Đã giao' || normalizedStatus === 'Đã hủy') {
-        setIsAnimationActive(false);
-      }
-    }, [order.status, order, assignedDrone, droneState]);
+          if (shouldShow && !droneState) {
+            setIsAnimationActive(true);
+            startDroneTracking(order.id);
+          }
+        }
+      }, [order.status, order.id, assignedDrone, droneState]);
 
     const handleDroneComplete = () => {
       updateOrderStatus(order.id, ORDER_STATUS.COMPLETED as any);
@@ -575,6 +627,40 @@ const OrderTracking: React.FC = () => {
             <div><strong>Số điện thoại:</strong> {order.phone}</div>
             <div><strong>Địa chỉ:</strong> {order.address}</div>
           </OrderInfo>
+          
+          {/* Delivery Confirmation Message - Show when order is delivered */}
+          {(() => {
+            const rawStatus = order?.status?.trim()?.toLowerCase() || '';
+            const isDelivered = rawStatus === "delivered" || rawStatus === "completed" || rawStatus === "đã giao";
+            
+            if (isDelivered) {
+              return (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5 }}
+                  style={{
+                    marginTop: '16px',
+                    padding: '20px',
+                    background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                    borderRadius: '12px',
+                    color: 'white',
+                    textAlign: 'center',
+                    boxShadow: '0 4px 12px rgba(40, 167, 69, 0.3)'
+                  }}
+                >
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>✅</div>
+                  <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+                    Đơn hàng đã được giao thành công!
+                  </div>
+                  <div style={{ fontSize: '14px', opacity: 0.9 }}>
+                    Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi
+                  </div>
+                </motion.div>
+              );
+            }
+            return null;
+          })()}
           
           <div style={{ marginBottom: '12px' }}>
             <strong>Chi tiết đơn hàng:</strong>

@@ -43,18 +43,18 @@ const Form = styled.form`
   gap: 20px;
 `;
 
-const Input = styled.input<{ hasError?: boolean }>`
+const Input = styled.input<{ $hasError?: boolean }>`
   width: 100%;
   padding: 12px 16px;
   border-radius: var(--radius-md);
-  border: 1px solid ${props => props.hasError ? '#e74c3c' : 'var(--border)'};
+  border: 1px solid ${props => props.$hasError ? '#e74c3c' : 'var(--border)'};
   background: var(--card);
   color: var(--text);
   font-size: 16px;
   transition: border-color 0.2s ease;
   
   &:focus {
-    border-color: ${props => props.hasError ? '#e74c3c' : 'var(--primary)'};
+    border-color: ${props => props.$hasError ? '#e74c3c' : 'var(--primary)'};
     outline: none;
   }
   
@@ -185,7 +185,7 @@ const Register: React.FC = () => {
               })}
               type="text"
               placeholder="Họ và tên"
-              hasError={!!errors.name}
+              $hasError={!!errors.name}
             />
             {errors.name && <ErrorMessage>{errors.name.message}</ErrorMessage>}
           </div>
@@ -201,7 +201,7 @@ const Register: React.FC = () => {
               })}
               type="email"
               placeholder="Email của bạn"
-              hasError={!!errors.email}
+              $hasError={!!errors.email}
             />
             {errors.email && <ErrorMessage>{errors.email.message}</ErrorMessage>}
           </div>
@@ -217,7 +217,7 @@ const Register: React.FC = () => {
               })}
               type="password"
               placeholder="Mật khẩu"
-              hasError={!!errors.password}
+              $hasError={!!errors.password}
             />
             {errors.password && <ErrorMessage>{errors.password.message}</ErrorMessage>}
           </div>
@@ -230,7 +230,7 @@ const Register: React.FC = () => {
               })}
               type="password"
               placeholder="Xác nhận mật khẩu"
-              hasError={!!errors.confirmPassword}
+              $hasError={!!errors.confirmPassword}
             />
             {errors.confirmPassword && <ErrorMessage>{errors.confirmPassword.message}</ErrorMessage>}
           </div>

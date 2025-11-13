@@ -270,22 +270,77 @@ export const getRestaurantOverview = async (id: string): Promise<RestaurantOverv
 };
 
 /**
- * Get restaurant orders
+ * Get restaurant orders from API
  */
 export const getRestaurantOrders = async (id: string): Promise<Order[]> => {
-  await simulateDelay();
-  
-  const data = getRestaurantData(id);
-  if (!data) return [];
-  
-  return data.orders.map(order => ({
-    ...order,
-    total: addVariation(order.total, 3),
-    items: order.items.map(item => ({
-      ...item,
-      price: addVariation(item.price, 2)
-    }))
-  }));
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+    
+    // Normalize restaurant ID for API query
+    let restaurantIdParam = id;
+    if (id.toLowerCase() === 'sweetdreams') {
+      restaurantIdParam = 'rest_2';
+    } else if (id.toLowerCase() === 'aloha') {
+      restaurantIdParam = 'restaurant_2';
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/orders?restaurantId=${restaurantIdParam}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch orders: ${response.status}`);
+    }
+    
+    const apiOrders = await response.json();
+    
+    // Map API orders to restaurant service Order type
+    return apiOrders.map((apiOrder: any) => ({
+      id: apiOrder.id,
+      status: mapApiStatusToRestaurantStatus(apiOrder.status),
+      total: apiOrder.total || 0,
+      customerName: apiOrder.customerName || apiOrder.name || '',
+      customerPhone: apiOrder.customerPhone || apiOrder.phone || '',
+      items: (apiOrder.items || []).map((item: any) => ({
+        name: item.name,
+        quantity: item.quantity || item.qty || 1,
+        price: item.price || 0
+      })),
+      orderTime: apiOrder.orderTime || new Date(apiOrder.createdAt || Date.now()).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      estimatedDelivery: apiOrder.estimatedDelivery,
+      droneId: apiOrder.droneId
+    }));
+  } catch (error) {
+    console.error('[RestaurantService] Error fetching orders from API:', error);
+    // Fallback to mock data if API fails
+    const data = getRestaurantData(id);
+    if (!data) return [];
+    
+    return data.orders.map(order => ({
+      ...order,
+      total: addVariation(order.total, 3),
+      items: order.items.map(item => ({
+        ...item,
+        price: addVariation(item.price, 2)
+      }))
+    }));
+  }
+};
+
+// Helper to map API status to restaurant service status
+const mapApiStatusToRestaurantStatus = (apiStatus: string): Order['status'] => {
+  const statusMap: Record<string, Order['status']> = {
+    'pending': 'Đang chuẩn bị',
+    'preparing': 'Đang chuẩn bị',
+    'confirmed': 'Đang chuẩn bị',
+    'in progress': 'Đang chuẩn bị',
+    'ready': 'Đang chuẩn bị',
+    'delivering': 'Đang giao hàng',
+    'Đang giao': 'Đang giao hàng',
+    'delivered': 'Hoàn thành',
+    'Đã giao': 'Hoàn thành',
+    'completed': 'Hoàn thành',
+    'cancelled': 'Hủy',
+    'Đã hủy': 'Hủy'
+  };
+  return statusMap[apiStatus?.toLowerCase()] || 'Đang chuẩn bị';
 };
 
 /**
@@ -322,19 +377,55 @@ export const updateDroneStatus = async (id: string, droneId: string, status: Dro
 };
 
 /**
- * Update order status
+ * Update order status via API
  */
 export const updateOrderStatus = async (id: string, orderId: string, status: Order['status']): Promise<boolean> => {
-  await simulateDelay();
-  
-  const data = getRestaurantData(id);
-  if (!data) return false;
-  
-  const order = data.orders.find(o => o.id === orderId);
-  if (!order) return false;
-  
-  order.status = status;
-  return true;
+  try {
+    const RESTAURANT_ORDERS_URL = import.meta.env.VITE_RESTAURANT_ORDERS_API || 'http://localhost:3001/orders';
+    
+    // Map restaurant status to API status
+    const apiStatus = mapRestaurantStatusToApiStatus(status);
+    
+    const response = await fetch(`${RESTAURANT_ORDERS_URL}/${orderId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        status: apiStatus,
+        updatedAt: Date.now()
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update order status: ${response.status}`);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('[RestaurantService] Error updating order status:', error);
+    // Fallback to mock data update if API fails
+    await simulateDelay();
+    const data = getRestaurantData(id);
+    if (!data) return false;
+    
+    const order = data.orders.find(o => o.id === orderId);
+    if (!order) return false;
+    
+    order.status = status;
+    return true;
+  }
+};
+
+// Helper to map restaurant service status to API status
+const mapRestaurantStatusToApiStatus = (status: Order['status']): string => {
+  const statusMap: Record<Order['status'], string> = {
+    'Đang chuẩn bị': 'preparing',
+    'Đang giao hàng': 'delivering',
+    'Hoàn thành': 'delivered',
+    'Hủy': 'cancelled'
+  };
+  return statusMap[status] || 'preparing';
 };
 
 /**

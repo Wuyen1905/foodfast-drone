@@ -2,6 +2,7 @@
 // Handles notifying restaurants when new orders are placed
 
 import { Order } from '@/context/OrderContext';
+import toast from 'react-hot-toast';
 
 /**
  * Map restaurant names to restaurant IDs

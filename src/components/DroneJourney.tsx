@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { motion, useAnimation } from 'framer-motion';
 import { useDroneJourney } from '../hooks/useDroneJourney';
 import toast from 'react-hot-toast';
+import { connectOrderSocket, disconnectOrderSocket } from '@/services/orderSyncService';
 
 // Types
 interface DroneJourneyProps {
@@ -317,6 +318,82 @@ const DroneJourney: React.FC<DroneJourneyProps> = ({
     isInitializedRef.current = false;
   }, [orderId]);
 
+  // [Real-Time Sync] Listen to WebSocket order status updates
+  useEffect(() => {
+    const handleOrderUpdate = (orderUpdate: any) => {
+      // Only process updates for this order
+      if (orderUpdate.id !== orderId) {
+        return;
+      }
+
+      console.log(`[DroneJourney] 📦 Order ${orderId} status update received:`, orderUpdate.status);
+
+      // Normalize status for comparison
+      const status = orderUpdate.status?.toLowerCase() || '';
+      
+      // If order is marked as "Delivered" or "Completed", immediately stop drone
+      if (status === 'delivered' || status === 'completed' || status === 'đã giao') {
+        console.log(`[DroneJourney] 🎉 Order ${orderId} delivered - stopping drone immediately`);
+        
+        // Clear intervals
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = undefined;
+        }
+        if (realtimeUpdateRef.current) {
+          clearInterval(realtimeUpdateRef.current);
+          realtimeUpdateRef.current = undefined;
+        }
+        
+        // Update drone state to delivered
+        setDroneState(prev => ({
+          ...prev,
+          eta: 0,
+          progress: 100,
+          currentStep: 4,
+          isFlying: false,
+          delivered: true
+        }));
+        
+        // Show delivery confirmation
+        setTimeout(() => {
+          toast.success('🎉 Đơn hàng đã được giao thành công!');
+          onComplete?.();
+        }, 100);
+      }
+      // If order status changes to "Delivering", ensure drone is active
+      else if ((status === 'delivering' || status === 'đang giao') && !droneState.isFlying && !droneState.delivered) {
+        console.log(`[DroneJourney] 🛸 Order ${orderId} status changed to Delivering - starting drone`);
+        
+        // Initialize drone state if not already initialized
+        if (!isInitializedRef.current) {
+          const distance = generateRandomDistance();
+          const initialEta = calculateETA(distance);
+          const newState: DroneState = {
+            eta: initialEta,
+            progress: 0,
+            currentStep: 0,
+            isFlying: true,
+            delivered: false,
+            distance,
+            initialEta
+          };
+          setDroneState(newState);
+          localStorage.setItem(`drone-state-${orderId}`, JSON.stringify(newState));
+          isInitializedRef.current = true;
+        }
+      }
+    };
+
+    // Subscribe to WebSocket updates for this order
+    connectOrderSocket(handleOrderUpdate);
+    
+    return () => {
+      // Note: We don't disconnect here as other components may be using the same WebSocket connection
+      // The disconnectOrderSocket is handled at a higher level (component/page level)
+    };
+  }, [orderId, droneState.isFlying, droneState.delivered, onComplete]);
+
   // Save drone state to localStorage whenever it changes
   useEffect(() => {
     if (droneState.distance > 0) {
@@ -490,6 +567,32 @@ const DroneJourney: React.FC<DroneJourneyProps> = ({
     return `${minutes} phút`;
   };
 
+  // Show delivery confirmation if order is delivered
+  if (droneState.delivered) {
+    return (
+      <JourneyContainer>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          style={{
+            textAlign: 'center',
+            padding: '32px 24px'
+          }}
+        >
+          <div style={{ fontSize: '56px', marginBottom: '16px' }}>✅</div>
+          <div style={{ fontSize: '22px', fontWeight: '600', color: '#28a745', marginBottom: '12px' }}>
+            Đơn hàng đã được giao thành công!
+          </div>
+          <div style={{ fontSize: '14px', color: '#6c757d', lineHeight: '1.6' }}>
+            Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi
+          </div>
+        </motion.div>
+      </JourneyContainer>
+    );
+  }
+
+  // Don't show drone journey if not active and not flying
   if (!isActive && !droneState.isFlying && !droneState.delivered) {
     return null;
   }
