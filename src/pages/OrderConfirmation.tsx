@@ -11,6 +11,7 @@ import { useOrders } from '@/context/OrderContext';
 import { formatVND } from '@/utils/currency';
 import dayjs from 'dayjs';
 import { getRestaurantById } from '@/services/adminService';
+import { fetchOrderById, fetchOrders } from '@/services/orderApiService';
 import type { Order } from '@/context/OrderContext';
 import toast from 'react-hot-toast';
 
@@ -213,6 +214,32 @@ const ErrorState = styled.div`
   color: #f44336;
 `;
 
+const ConfirmationCodeSection = styled.div`
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+`;
+
+const ConfirmationCodeLabel = styled.div`
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+`;
+
+const ConfirmationCodeValue = styled.div`
+  color: white;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  font-family: 'Courier New', monospace;
+`;
+
 const OrderConfirmation: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -224,6 +251,10 @@ const OrderConfirmation: React.FC = () => {
 
   const orderId = searchParams.get('orderId');
   const paymentSessionId = searchParams.get('paymentSessionId');
+  const confirmationCodeFromUrl = searchParams.get('confirmationCode');
+  
+  // Store confirmation code in state to avoid regenerating on re-renders
+  const [confirmationCode, setConfirmationCode] = useState<string>('');
 
   // [Fix Order Creation] Refresh orders when component mounts or orderId changes
   useEffect(() => {
@@ -234,6 +265,20 @@ const OrderConfirmation: React.FC = () => {
     }
   }, [orderId, refreshOrders]);
 
+  // Set confirmation code from URL or generate fallback
+  useEffect(() => {
+    if (confirmationCodeFromUrl) {
+      setConfirmationCode(confirmationCodeFromUrl);
+    } else {
+      // Generate fallback code if not provided (only once)
+      const generateConfirmationCode = () => {
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        return `FD-${randomNum}`;
+      };
+      setConfirmationCode(generateConfirmationCode());
+    }
+  }, [confirmationCodeFromUrl]);
+
   // [Fix Order Creation] Update order display when orders change
   useEffect(() => {
     const loadOrders = async () => {
@@ -243,27 +288,89 @@ const OrderConfirmation: React.FC = () => {
       }
 
       try {
-        // Find the initial order by ID
-        const foundOrder = orders.find(o => o.id === orderId);
+        // Step 1: Try to find order in context first
+        let foundOrder = orders.find(o => o.id === orderId);
+        let sessionOrders: Order[] = [];
+        let usedApiFallback = false;
         
+        // Step 2: If not found in context, fetch from API
         if (!foundOrder) {
+          console.log(`[OrderConfirmation] Order ${orderId} not found in context, fetching from API...`);
+          try {
+            const apiOrder = await fetchOrderById(orderId);
+            if (apiOrder) {
+              foundOrder = apiOrder;
+              usedApiFallback = true;
+              console.log(`[OrderConfirmation] Successfully fetched order ${orderId} from API`);
+            }
+          } catch (error) {
+            console.error(`[OrderConfirmation] Failed to fetch order ${orderId} from API:`, error);
+          }
+        }
+        
+        // Step 3: If still no order found, show error
+        if (!foundOrder) {
+          console.error(`[OrderConfirmation] Order ${orderId} not found in context or API`);
           setLoading(false);
           return;
+        }
+        
+        // Step 4: Get session orders - try context first, then API fallback
+        const sessionIdToUse = paymentSessionId || foundOrder.paymentSessionId;
+        
+        if (sessionIdToUse) {
+          // Try context first
+          sessionOrders = getOrdersByPaymentSession(sessionIdToUse);
+          
+          // If we used API fallback for the main order, or context doesn't have session orders, fetch from API
+          // Also check if context orders array is empty or very small (might be incomplete)
+          const contextHasIncompleteData = orders.length === 0 || (usedApiFallback && sessionOrders.length === 0);
+          
+          if (usedApiFallback || contextHasIncompleteData || sessionOrders.length === 0) {
+            console.log(`[OrderConfirmation] Fetching all orders from API to find session orders for ${sessionIdToUse}...`);
+            try {
+              const allApiOrders = await fetchOrders();
+              // Filter orders by paymentSessionId
+              const apiSessionOrders = allApiOrders.filter((o: Order) => o.paymentSessionId === sessionIdToUse);
+              
+              // Sort orders deterministically: by createdAt, then by id
+              apiSessionOrders.sort((a, b) => {
+                const aTime = a.createdAt ?? 0;
+                const bTime = b.createdAt ?? 0;
+                if (aTime === bTime) return a.id.localeCompare(b.id);
+                return aTime - bTime;
+              });
+              
+              // Use API results if we found orders, otherwise keep context results
+              if (apiSessionOrders.length > 0) {
+                sessionOrders = apiSessionOrders;
+                console.log(`[OrderConfirmation] Found ${sessionOrders.length} order(s) in session ${sessionIdToUse} from API`);
+              } else if (sessionOrders.length === 0) {
+                // No orders found in API either, use the single found order
+                sessionOrders = [foundOrder];
+                console.log(`[OrderConfirmation] No session orders found, using single order`);
+              }
+            } catch (error) {
+              console.error(`[OrderConfirmation] Failed to fetch session orders from API:`, error);
+              // Fallback: use context results or single found order
+              if (sessionOrders.length === 0) {
+                sessionOrders = [foundOrder];
+              }
+            }
+          }
+        } else {
+          // No paymentSessionId available, just use the single order
+          sessionOrders = [foundOrder];
+        }
+        
+        // Step 5: Update confirmation code from order if available and not already set from URL
+        if (!confirmationCodeFromUrl && foundOrder.paymentSessionId && !confirmationCode) {
+          setConfirmationCode(foundOrder.paymentSessionId);
         }
 
         setOrder(foundOrder);
 
-        // If paymentSessionId is provided, get all orders from the session
-        let sessionOrders: Order[] = [];
-        if (paymentSessionId) {
-          sessionOrders = getOrdersByPaymentSession(paymentSessionId);
-        } else if (foundOrder.paymentSessionId) {
-          // Fallback: use paymentSessionId from the order
-          sessionOrders = getOrdersByPaymentSession(foundOrder.paymentSessionId);
-        }
-
-        // If we have multiple orders in the session, use all of them
-        // Otherwise, just use the single order
+        // Step 6: Set session orders and fetch restaurant names
         if (sessionOrders.length > 1) {
           setAllSessionOrders(sessionOrders);
           // Get restaurant names for all orders
@@ -303,7 +410,7 @@ const OrderConfirmation: React.FC = () => {
     };
 
     loadOrders();
-  }, [orderId, paymentSessionId, orders, getOrdersByPaymentSession]);
+  }, [orderId, paymentSessionId, orders, getOrdersByPaymentSession, confirmationCodeFromUrl, confirmationCode]);
 
   const getStatusText = (status: string): string => {
     const statusMap: Record<string, string> = {
@@ -371,6 +478,13 @@ const OrderConfirmation: React.FC = () => {
             : 'Cảm ơn bạn đã đặt hàng tại FoodFast!'}
         </SubMessage>
 
+        {confirmationCode && (
+          <ConfirmationCodeSection>
+            <ConfirmationCodeLabel>Mã xác nhận thanh toán</ConfirmationCodeLabel>
+            <ConfirmationCodeValue>{confirmationCode}</ConfirmationCodeValue>
+          </ConfirmationCodeSection>
+        )}
+
         {allSessionOrders.length > 1 && (
           <Section>
             <SectionTitle>Tổng quan đơn hàng</SectionTitle>
@@ -420,21 +534,29 @@ const OrderConfirmation: React.FC = () => {
             <div style={{ marginTop: '16px' }}>
               <SectionTitle style={{ fontSize: '16px', marginBottom: '12px' }}>Sản phẩm</SectionTitle>
               <ItemsList>
-                {sessionOrder.items.map((item, itemIndex) => (
+                {(sessionOrder.items || []).map((item, itemIndex) => (
                   <ItemRow key={itemIndex}>
                     <ItemInfo>
-                      <ItemName>{item.name}</ItemName>
+                      <ItemName>{item.name || 'N/A'}</ItemName>
                       <ItemDetails>
-                        Số lượng: {item.qty} × {formatVND(item.price)}
+                        Số lượng: {item.qty || 0} × {formatVND(item.price || 0)}
                       </ItemDetails>
                     </ItemInfo>
-                    <ItemTotal>{formatVND(item.price * item.qty)}</ItemTotal>
+                    <ItemTotal>{formatVND((item.price || 0) * (item.qty || 0))}</ItemTotal>
                   </ItemRow>
                 ))}
+                {(!sessionOrder.items || sessionOrder.items.length === 0) && (
+                  <div style={{ padding: '12px', textAlign: 'center', color: 'var(--secondaryText)' }}>
+                    Không có sản phẩm
+                  </div>
+                )}
               </ItemsList>
               <InfoRow style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
                 <InfoLabel>Tổng đơn hàng:</InfoLabel>
-                <InfoValue $highlight>{formatVND(sessionOrder.total)}</InfoValue>
+                <InfoValue $highlight>{(() => {
+                  const displayTotal = sessionOrder.total ?? 0;
+                  return formatVND(displayTotal);
+                })()}</InfoValue>
               </InfoRow>
             </div>
           </Section>

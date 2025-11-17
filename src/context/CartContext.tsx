@@ -32,14 +32,28 @@ export const CartProvider: React.FC<{ children: React.ReactNode; priceMap: Recor
   const add = (id: string, qty: number = 1, snapshot?: { name: string; image?: string; price: number; restaurantId?: string; restaurant?: string }) => {
     setItems(prev => {
       const existing = prev.find(i => i.id === id);
-      if (existing) return prev.map(i => i.id === id ? { ...i, qty: i.qty + qty } : i);
-      const price = snapshot?.price ?? priceMap[id] ?? 0;
+      if (existing) {
+        // Ensure existing item has price, if missing try to get from priceMap
+        return prev.map(i => {
+          if (i.id === id) {
+            const updatedPrice = i.price && i.price > 0 ? i.price : (priceMap[id] ?? snapshot?.price ?? 0);
+            return { ...i, qty: i.qty + qty, price: updatedPrice };
+          }
+          return i;
+        });
+      }
+      // Ensure price is always set - prioritize snapshot, then priceMap, then throw error
+      const price = snapshot?.price ?? priceMap[id];
+      if (price === undefined || price === null || price <= 0) {
+        console.error(`[CartContext] Missing or invalid price for item ${id}. snapshot.price=${snapshot?.price}, priceMap[id]=${priceMap[id]}`);
+        throw new Error(`Cannot add item to cart: price is missing or invalid for item ${id}`);
+      }
       return [...prev, { 
         id, 
         qty, 
         name: snapshot?.name ?? id, 
         image: snapshot?.image, 
-        price,
+        price: Number(price),
         restaurantId: snapshot?.restaurantId,
         restaurant: snapshot?.restaurant
       }];

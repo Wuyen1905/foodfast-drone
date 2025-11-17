@@ -2,7 +2,7 @@ import SockJS from "sockjs-client";
 import { Stomp } from "@stomp/stompjs";
 
 // Use environment variable or fallback to proxy URL (via Vite proxy) or current origin
-// In dev mode, Vite proxy forwards /ws to http://localhost:5000/ws
+// In dev mode, Vite proxy forwards /ws to http://localhost:8080/ws
 // In production, use the same origin as the frontend
 const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 
                     (import.meta.env.DEV ? '' : window.location.origin);

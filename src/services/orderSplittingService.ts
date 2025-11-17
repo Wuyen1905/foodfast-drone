@@ -4,13 +4,13 @@
  */
 
 import { Order } from '@/context/OrderContext';
-import { getRestaurantIdFromProductId, normalizeRestaurantId } from './restaurantNotificationService';
 
 export interface CartItem {
   id: string;
   name: string;
   qty: number;
   price: number;
+  restaurantId: string;
 }
 
 export interface OrderCreationData {
@@ -55,19 +55,6 @@ const calculateTax = (subtotal: number): number => {
   return subtotal * 0.08; // 8% tax
 };
 
-/**
- * Map normalized restaurant ID to db.json restaurant ID
- * db.json uses: "rest_2" for SweetDreams, "restaurant_2" for Aloha
- */
-const mapToDbRestaurantId = (normalizedId: string): string => {
-  const dbIdMap: Record<string, string> = {
-    'sweetdreams': 'rest_2',
-    'aloha': 'restaurant_2',
-    'rest_2': 'rest_2',
-    'restaurant_2': 'restaurant_2',
-  };
-  return dbIdMap[normalizedId.toLowerCase()] || normalizedId;
-};
 
 /**
  * Group cart items by restaurant ID
@@ -76,29 +63,20 @@ export const groupItemsByRestaurant = (items: CartItem[]): Map<string, CartItem[
   const grouped = new Map<string, CartItem[]>();
 
   for (const item of items) {
-    // [Restore Full Checkout] Use restaurantId from cart item if available, otherwise determine from product ID
-    let restaurantId: string | null = item.restaurantId || null;
-    
-    if (!restaurantId) {
-      // Fallback: determine restaurant ID from product ID
-      restaurantId = getRestaurantIdFromProductId(item.id);
-    }
-    
-    if (!restaurantId) {
-      console.warn(`Could not determine restaurant for item ${item.id}, skipping`);
+    // Use restaurantId from cart item ONLY - no fallback, no normalization
+    if (!item.restaurantId) {
+      console.warn(`Missing restaurantId for item ${item.id}, skipping`);
       continue;
     }
 
-    // Normalize restaurant ID (handles 'sweetdreams', 'aloha', etc.)
-    const normalizedId = normalizeRestaurantId(restaurantId);
-    // Map to db.json restaurant ID format (rest_2, restaurant_2)
-    const dbRestaurantId = mapToDbRestaurantId(normalizedId);
+    // Use restaurantId exactly as provided (no conversion to rest_2/restaurant_2)
+    const restaurantId = item.restaurantId;
     
-    if (!grouped.has(dbRestaurantId)) {
-      grouped.set(dbRestaurantId, []);
+    if (!grouped.has(restaurantId)) {
+      grouped.set(restaurantId, []);
     }
     
-    grouped.get(dbRestaurantId)!.push(item);
+    grouped.get(restaurantId)!.push(item);
   }
 
   return grouped;
@@ -111,7 +89,7 @@ export const splitOrdersByRestaurant = (
   items: CartItem[],
   deliveryFeePerOrder: number = 25000
 ): OrderSplitResult => {
-  // Group items by restaurant (returns db.json format restaurant IDs: rest_2, restaurant_2)
+  // Group items by restaurant (uses restaurantId exactly as provided, no normalization)
   const groupedItems = groupItemsByRestaurant(items);
   
   // Generate payment session ID (links all orders together)
@@ -133,7 +111,7 @@ export const splitOrdersByRestaurant = (
     const total = subtotal + deliveryFee + tax;
 
     splitOrders.push({
-      restaurantId, // This is now in db.json format: rest_2 or restaurant_2
+      restaurantId, // Use restaurantId exactly as provided (aloha or sweetdreams, no normalization)
       items: restaurantItems,
       subtotal,
       deliveryFee,

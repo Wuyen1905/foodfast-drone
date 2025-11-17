@@ -412,9 +412,18 @@ const Checkout: React.FC = () => {
             
             toast.success("Thanh toán VNPay thành công!");
             
-                // Navigate to confirmation with first order ID and payment session ID
+            // Generate payment confirmation code (FD-XXXX format)
+            const generateConfirmationCode = () => {
+              const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit number
+              return `FD-${randomNum}`;
+            };
+            
+            // Use paymentSessionId as confirmation code, or generate fallback
+            const confirmationCode = splitResult.paymentSessionId || generateConfirmationCode();
+            
+            // Navigate to confirmation with first order ID, payment session ID, and confirmation code
             const firstOrderId = createdOrders[0]?.id || '';
-            navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}`);
+            navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}&confirmationCode=${encodeURIComponent(confirmationCode)}`);
               } catch (error: any) {
                 // [Fix 500 Error] Handle order creation error gracefully
                 // addOrders already handles errors and adds orders locally, so we can continue
@@ -426,8 +435,18 @@ const Checkout: React.FC = () => {
                 clear();
                 
                 toast.success("Thanh toán VNPay thành công!");
+                
+                // Generate payment confirmation code (FD-XXXX format)
+                const generateConfirmationCode = () => {
+                  const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit number
+                  return `FD-${randomNum}`;
+                };
+                
+                // Use paymentSessionId as confirmation code, or generate fallback
+                const confirmationCode = splitResult.paymentSessionId || generateConfirmationCode();
+                
                 const firstOrderId = splitResult.orders[0]?.restaurantId ? `ORDER-${Date.now()}` : '';
-                navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}`);
+                navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}&confirmationCode=${encodeURIComponent(confirmationCode)}`);
               }
           } else {
             toast.error(paymentResult.message);
@@ -475,9 +494,18 @@ const Checkout: React.FC = () => {
             
             toast.success("Bạn đã đặt hàng thành công!");
             
-            // Navigate to confirmation with first order ID and payment session ID
+            // Generate payment confirmation code (FD-XXXX format)
+            const generateConfirmationCode = () => {
+              const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit number
+              return `FD-${randomNum}`;
+            };
+            
+            // Use paymentSessionId as confirmation code, or generate fallback
+            const confirmationCode = splitResult.paymentSessionId || generateConfirmationCode();
+            
+            // Navigate to confirmation with first order ID, payment session ID, and confirmation code
             const firstOrderId = createdOrders[0]?.id || '';
-            navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}`);
+            navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}&confirmationCode=${encodeURIComponent(confirmationCode)}`);
           } catch (error: any) {
             // [Fix 500 Error] Handle order creation error gracefully
             // addOrders already handles errors and adds orders locally, so we can continue
@@ -487,9 +515,18 @@ const Checkout: React.FC = () => {
             sessionStorage.removeItem('checkoutItems');
             clear();
             
+            // Generate payment confirmation code (FD-XXXX format)
+            const generateConfirmationCode = () => {
+              const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit number
+              return `FD-${randomNum}`;
+            };
+            
+            // Use paymentSessionId as confirmation code, or generate fallback
+            const confirmationCode = splitResult.paymentSessionId || generateConfirmationCode();
+            
             toast.success("Bạn đã đặt hàng thành công!");
             const firstOrderId = splitResult.orders[0]?.restaurantId ? `ORDER-${Date.now()}` : '';
-            navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}`);
+            navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}&confirmationCode=${encodeURIComponent(confirmationCode)}`);
           }
         }
       } else {
@@ -504,9 +541,9 @@ const Checkout: React.FC = () => {
           // Map to db.json format if needed
           if (firstItemRestaurantId === 'rest_2' || firstItemRestaurantId === 'restaurant_2') {
             restaurantId = firstItemRestaurantId;
-          } else if (firstItemRestaurantId.startsWith('sd-') || firstItemRestaurantId.includes('sweetdreams')) {
+          } else if (firstItemRestaurantId === 'sweetdreams' || firstItemRestaurantId.startsWith('sd')) {
             restaurantId = 'rest_2';
-          } else if (firstItemRestaurantId.startsWith('ak-') || firstItemRestaurantId.includes('aloha')) {
+          } else if (firstItemRestaurantId === 'aloha' || firstItemRestaurantId.startsWith('ak')) {
             restaurantId = 'restaurant_2';
           } else {
             restaurantId = firstItemRestaurantId;
@@ -519,11 +556,16 @@ const Checkout: React.FC = () => {
           name: form.name,
           phone: form.phone,
           address: `${form.street}, ${form.district}, ${form.city}`,
-          items: checkoutItems.map(item => ({
-            name: item.name,
-            qty: item.qty,
-            price: item.price
-          })),
+          items: checkoutItems.map(item => {
+            if (!item.price || item.price === undefined || item.price === null) {
+              throw new Error(`Missing price for item: ${item.name}`);
+            }
+            return {
+              name: item.name,
+              qty: Number(item.qty) || 1,
+              price: Number(item.price)
+            };
+          }),
           total: total,
           status: 'Pending',
           paymentMethod: form.payment as any,

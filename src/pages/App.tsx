@@ -20,7 +20,6 @@ import SweetDreamsDashboard from './restaurant/SweetDreamsDashboard';
 import AlohaKitchenDashboard from './restaurant/AlohaKitchenDashboard';
 import AlohaDashboard from './restaurant/AlohaDashboard';
 import AdminControlPanel from './admin/AdminControlPanel';
-import ThemeToggle from '../components/ThemeToggle';
 import ResponsiveLayout from '../components/ResponsiveLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import CustomerInfoForm from '../components/CustomerInfoForm';
@@ -59,7 +58,6 @@ const App: React.FC = () => {
         <BrowserRouter>
           <ResponsiveLayout>
             <Navbar />
-            <ThemeToggle />
           <Routes>
             <Route path="/" element={<Navigate to="/menu" replace />} />
             <Route path="/home" element={<Navigate to="/menu" replace />} />

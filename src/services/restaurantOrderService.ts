@@ -77,22 +77,27 @@ export const getRestaurantOrders = async (restaurantId: string): Promise<Order[]
 };
 
 // Helper to map API status to OrderStatus
+// Maps Java enum (uppercase) to frontend status
 const mapApiStatusToOrderStatus = (apiStatus: string): OrderStatus => {
   const statusMap: Record<string, OrderStatus> = {
+    'PENDING': 'Pending',
+    'CONFIRMED': 'Confirmed',
+    'PREPARING': 'In Progress',
+    'READY': 'Ready',
+    'DELIVERING': 'Delivering',
+    'DELIVERED': 'Delivered',
+    'CANCELLED': 'Cancelled',
+    // Support lowercase for backward compatibility
     'pending': 'Pending',
-    'preparing': 'In Progress',
     'confirmed': 'Confirmed',
-    'in progress': 'In Progress',
+    'preparing': 'In Progress',
     'ready': 'Ready',
     'delivering': 'Delivering',
-    'Đang giao': 'Delivering',
     'delivered': 'Delivered',
-    'Đã giao': 'Delivered',
-    'completed': 'Delivered',
     'cancelled': 'Cancelled',
-    'Đã hủy': 'Cancelled'
   };
-  return statusMap[apiStatus?.toLowerCase()] || 'Pending';
+  const normalizedStatus = apiStatus?.toUpperCase();
+  return statusMap[normalizedStatus] || statusMap[apiStatus?.toLowerCase()] || 'Pending';
 };
 
 /**
@@ -106,7 +111,7 @@ export const confirmOrder = async (orderId: string, confirmedBy?: string): Promi
     
     // Update order status to Confirmed via backend API
     await patchOrder(orderId, {
-      status: 'confirmed',
+      status: 'Confirmed',
       confirmedAt: Date.now(),
       confirmedBy: confirmedBy,
       updatedAt: Date.now()
@@ -141,7 +146,7 @@ export const rejectOrder = async (orderId: string, reason?: string): Promise<boo
     
     // Update order status to Cancelled via backend API
     await patchOrder(orderId, {
-      status: 'cancelled',
+      status: 'Cancelled',
       cancelledAt: Date.now(),
       internalNotes: updatedNotes,
       updatedAt: Date.now()
@@ -185,7 +190,7 @@ export const updateOrderStatus = async (orderId: string, status: OrderStatus): P
         console.error(`❌ [restaurantOrderService] Error assigning drone to order ${orderId}:`, error);
         // Continue with status update even if drone assignment fails
       }
-    } else if (status === 'Delivered' || status === 'Completed') {
+    } else if (status === 'Delivered') {
       // Release drone from order when status changes to "Delivered"
       try {
         const { releaseDroneFromOrder } = await import('./droneService');
@@ -232,17 +237,18 @@ export const updateOrderStatus = async (orderId: string, status: OrderStatus): P
 };
 
 // Helper to map OrderStatus to API status
+// Maps frontend status to Java enum (uppercase)
 const mapOrderStatusToApiStatus = (status: OrderStatus): string => {
   const statusMap: Record<OrderStatus, string> = {
-    'Pending': 'pending',
-    'Confirmed': 'confirmed',
-    'In Progress': 'preparing',
-    'Ready': 'ready',
-    'Delivering': 'delivering',
-    'Delivered': 'delivered',
-    'Cancelled': 'cancelled'
+    'Pending': 'PENDING',
+    'Confirmed': 'CONFIRMED',
+    'In Progress': 'PREPARING',
+    'Ready': 'READY',
+    'Delivering': 'DELIVERING',
+    'Delivered': 'DELIVERED',
+    'Cancelled': 'CANCELLED'
   };
-  return statusMap[status] || 'pending';
+  return statusMap[status] || 'PENDING';
 };
 
 /**

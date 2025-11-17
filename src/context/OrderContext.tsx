@@ -77,6 +77,14 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
       
       const apiOrders = await fetchOrders();
       
+      // Sort orders deterministically: by createdAt, then by id
+      apiOrders.sort((a, b) => {
+        const aTime = a.createdAt ?? 0;
+        const bTime = b.createdAt ?? 0;
+        if (aTime === bTime) return a.id.localeCompare(b.id);
+        return aTime - bTime;
+      });
+      
       // [Fix Infinite Loop] Reset error counters on success
       consecutiveErrorsRef.current = 0;
       lastErrorTimeRef.current = 0;
@@ -158,13 +166,22 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
           // Update orders state directly
           setOrders((prevOrders) => {
             const exists = prevOrders.find((o) => o.id === mappedOrder.id);
+            let updatedOrders;
             if (exists) {
               // Update existing order
-              return prevOrders.map((o) => (o.id === mappedOrder.id ? mappedOrder : o));
+              updatedOrders = prevOrders.map((o) => (o.id === mappedOrder.id ? mappedOrder : o));
             } else {
               // Add new order
-              return [...prevOrders, mappedOrder];
+              updatedOrders = [...prevOrders, mappedOrder];
             }
+            // Sort orders deterministically: by createdAt, then by id
+            updatedOrders.sort((a, b) => {
+              const aTime = a.createdAt ?? 0;
+              const bTime = b.createdAt ?? 0;
+              if (aTime === bTime) return a.id.localeCompare(b.id);
+              return aTime - bTime;
+            });
+            return updatedOrders;
           });
           
           console.log('[OrderContext] ✅ Order updated in context:', mappedOrder.id, mappedOrder.status);
@@ -290,6 +307,14 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(true);
       const apiOrders = await fetchOrders();
       
+      // Sort orders deterministically: by createdAt, then by id
+      apiOrders.sort((a, b) => {
+        const aTime = a.createdAt ?? 0;
+        const bTime = b.createdAt ?? 0;
+        if (aTime === bTime) return a.id.localeCompare(b.id);
+        return aTime - bTime;
+      });
+      
       // [Fix Infinite Loop] Reset error counters on successful manual refresh
       consecutiveErrorsRef.current = 0;
       lastErrorTimeRef.current = 0;
@@ -394,11 +419,15 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
         throw new Error(`Invalid orders: ${invalidOrders.length} order(s) missing required fields`);
       }
       
+      // Generate ONE paymentSessionId for all orders in this batch
+      const sessionId = ordersToAdd[0]?.paymentSessionId || `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
       const ordersWithIds = ordersToAdd.map((order, index) => ({
         ...order,
         id: order.id || `ORD-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
         createdAt: order.createdAt || Date.now(),
-        updatedAt: order.updatedAt || Date.now()
+        updatedAt: order.updatedAt || Date.now(),
+        paymentSessionId: sessionId // Force same paymentSessionId for all orders
       }));
       
       // Create in API
@@ -448,27 +477,19 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getOrdersByRestaurantId = (restaurantId: string) => {
-    // Normalize restaurant ID for comparison
-    const normalizeId = (id: string) => {
-      const map: Record<string, string> = {
-        'rest_2': 'sweetdreams',
-        'restaurant_2': 'aloha',
-        'sweetdreams': 'sweetdreams',
-        'aloha': 'aloha',
-      };
-      return map[id?.toLowerCase()] || id;
-    };
-    
-    const normalizedTargetId = normalizeId(restaurantId);
-    return orders.filter((o) => {
-      if (!o.restaurantId) return false;
-      const normalizedOrderId = normalizeId(o.restaurantId);
-      return normalizedOrderId === normalizedTargetId;
-    });
+    return orders.filter(o => o.restaurantId === restaurantId);
   };
 
   const getOrdersByPaymentSession = (paymentSessionId: string) => {
-    return orders.filter((o) => o.paymentSessionId === paymentSessionId);
+    const filtered = orders.filter((o) => o.paymentSessionId === paymentSessionId);
+    // Sort orders deterministically: by createdAt, then by id
+    filtered.sort((a, b) => {
+      const aTime = a.createdAt ?? 0;
+      const bTime = b.createdAt ?? 0;
+      if (aTime === bTime) return a.id.localeCompare(b.id);
+      return aTime - bTime;
+    });
+    return filtered;
   };
 
   // [Data Sync] Update order status - sync to API

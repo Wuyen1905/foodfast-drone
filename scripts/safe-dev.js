@@ -112,9 +112,9 @@ class SafeDevServer {
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       const isConnected = await new Promise((resolve) => {
-        const request = http.get('http://localhost:5000/api/health', { timeout: 2000 }, (res) => {
+        const request = http.get('http://localhost:8080/api/health', { timeout: 2000 }, (res) => {
           if (res.statusCode === 200) {
-            this.log('Backend is running on port 5000', 'success');
+            this.log('Backend is running on port 8080', 'success');
             resolve(true);
           } else {
             this.log(`Backend returned status ${res.statusCode}`, 'warning');

@@ -422,7 +422,15 @@ const OrderHistory: React.FC = () => {
             </ItemsSummary>
 
             <TotalAmount>
-              Tổng tiền: {formatVND(order.total)}
+              Tổng tiền: {(() => {
+                const itemsTotal = order.items?.reduce((sum: number, item: any) => {
+                  const price = Number(item.price) || 0;
+                  const qty = Number(item.qty) || 0;
+                  return sum + price * qty;
+                }, 0) || 0;
+                const displayTotal = order.total > 0 ? order.total : itemsTotal;
+                return formatVND(displayTotal);
+              })()}
             </TotalAmount>
 
             {/* Toggle Drone Journey Button for Delivering Orders */}

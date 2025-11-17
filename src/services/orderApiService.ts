@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // [Backend Connection] API base URL for Spring Boot backend
-// Uses environment variable if available, otherwise falls back to /api (proxied by Vite to http://localhost:5000)
+// Uses environment variable if available, otherwise falls back to /api (proxied by Vite to http://localhost:8080)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const apiClient = axios.create({
@@ -14,26 +14,50 @@ const apiClient = axios.create({
 
 // [Data Sync] Map db.json order structure to OrderContext Order type
 export const mapApiOrderToOrder = (apiOrder: any): any => {
+  // Build items array
+  const items = (apiOrder.items || []).map((item: any) => {
+    const qty = item.quantity || item.qty || 1;
+    const price = item.price || 0;
+    return {
+      name: item.name,
+      qty,
+      price,
+    };
+  });
+
+  // Compute safe itemsTotal
+  const itemsTotal = items.reduce((sum: number, item: any) => {
+    const price = Number(item.price) || 0;
+    const qty = Number(item.qty) || 0;
+    return sum + price * qty;
+  }, 0);
+
+  // Use backend total always (backend calculates with shipping + tax)
+  const total = apiOrder.total ?? itemsTotal;
+
+  // Fix createdAt mapping
+  const createdAt = apiOrder.createdAt
+    ? apiOrder.createdAt
+    : apiOrder.orderTime
+      ? new Date(apiOrder.orderTime).getTime()
+      : Date.now();
+
   return {
     id: apiOrder.id,
     name: apiOrder.customerName || apiOrder.name || '',
     phone: apiOrder.customerPhone || apiOrder.phone || '',
     address: apiOrder.address || apiOrder.customerAddress || '',
-    items: (apiOrder.items || []).map((item: any) => ({
-      name: item.name,
-      qty: item.quantity || item.qty || 1,
-      price: item.price || 0,
-    })),
-    total: apiOrder.total || 0,
+    items,
+    total,
     status: mapApiStatusToOrderStatus(apiOrder.status),
     dronePath: apiOrder.dronePath,
     paymentMethod: apiOrder.paymentMethod || 'cod',
     paymentStatus: apiOrder.paymentStatus || 'Đang chờ phê duyệt',
     vnpayTransactionId: apiOrder.vnpayTransactionId,
     restaurantId: apiOrder.restaurantId,
-    userId: apiOrder.userId || apiOrder.customerId?.toString(),
+    userId: apiOrder.userId,
     paymentSessionId: apiOrder.paymentSessionId,
-    createdAt: apiOrder.createdAt || apiOrder.orderTime ? new Date(apiOrder.orderTime).getTime() : Date.now(),
+    createdAt,
     updatedAt: apiOrder.updatedAt || Date.now(),
     confirmedAt: apiOrder.confirmedAt,
     cancelledAt: apiOrder.cancelledAt,
@@ -91,15 +115,12 @@ export const mapOrderToApiOrder = (order: any): any => {
     throw new Error(`Invalid order data: ${validation.errors.join(', ')}`);
   }
   
-  // [Restore Full Checkout] Ensure restaurantId is in db.json format (rest_2, restaurant_2)
+  // Normalize restaurant ID to db.json format
   let restaurantId = order.restaurantId;
   if (restaurantId) {
-    // Normalize restaurant ID to db.json format
-    if (restaurantId === 'rest_2' || restaurantId === 'restaurant_2') {
-      // Already in correct format
-    } else if (restaurantId.includes('sweetdreams') || restaurantId.startsWith('sd-')) {
+    if (restaurantId === 'sweetdreams' || restaurantId.startsWith('sd')) {
       restaurantId = 'rest_2';
-    } else if (restaurantId.includes('aloha') || restaurantId.startsWith('ak-')) {
+    } else if (restaurantId === 'aloha' || restaurantId.startsWith('ak')) {
       restaurantId = 'restaurant_2';
     }
   }
@@ -111,13 +132,16 @@ export const mapOrderToApiOrder = (order: any): any => {
     }
     
     // [Fix 500 Error] Validate and sanitize quantity
-    const quantity = Math.max(1, Math.floor(parseFloat(String(item.qty || item.quantity || 1)) || 1));
+    const quantity = Math.max(1, parseInt(String(item.qty || item.quantity || 1)));
     if (isNaN(quantity) || quantity < 1) {
       throw new Error(`Invalid quantity for item "${item.name}": ${item.qty || item.quantity}`);
     }
     
     // [Fix 500 Error] Validate and sanitize price
-    const price = Math.max(0, parseFloat(String(item.price || 0)) || 0);
+    if (item.price === undefined || item.price === null) {
+      throw new Error("Missing price for item: " + item.name);
+    }
+    const price = Number(item.price);
     if (isNaN(price) || price < 0) {
       throw new Error(`Invalid price for item "${item.name}": ${item.price}`);
     }
@@ -125,13 +149,15 @@ export const mapOrderToApiOrder = (order: any): any => {
     return {
       name: String(item.name).trim(),
       quantity: quantity,
-      price: Math.round(price * 100) / 100, // Round to 2 decimal places
+      price: Math.round(Number(price)),
     };
   });
   
   // [Fix 500 Error] Calculate total from items (more reliable than using order.total)
-  const calculatedTotal = validItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const total = Math.max(calculatedTotal, parseFloat(order.total || 0) || 0);
+  const total = validItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
   
   // [Fix 500 Error] Safely parse customerId - only include if userId is a valid number
   let customerId: number | undefined = undefined;
@@ -164,7 +190,7 @@ export const mapOrderToApiOrder = (order: any): any => {
   const apiOrder: any = {
     id: order.id || `ORDER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     status: mapOrderStatusToApiStatus(order.status || 'Pending'),
-    total: Math.round(total * 100) / 100, // Round to 2 decimal places
+    total: total,
     customerName: String(order.name || '').trim(),
     customerPhone: String(order.phone || '').trim(),
     items: validItems,
@@ -243,34 +269,42 @@ export const mapOrderToApiOrder = (order: any): any => {
 };
 
 // [Data Sync] Map API status to OrderStatus
+// Maps Java enum (uppercase) to frontend status
 const mapApiStatusToOrderStatus = (apiStatus: string): string => {
   const statusMap: Record<string, string> = {
+    'PENDING': 'Pending',
+    'CONFIRMED': 'Confirmed',
+    'PREPARING': 'In Progress',
+    'READY': 'Ready',
+    'DELIVERING': 'Delivering',
+    'DELIVERED': 'Delivered',
+    'CANCELLED': 'Cancelled',
+    // Support lowercase for backward compatibility
     'pending': 'Pending',
+    'confirmed': 'Confirmed',
     'preparing': 'In Progress',
     'ready': 'Ready',
     'delivering': 'Delivering',
-    'Đang giao': 'Delivering',
     'delivered': 'Delivered',
-    'Đã giao': 'Delivered',
     'cancelled': 'Cancelled',
-    'Đã hủy': 'Cancelled',
-    'confirmed': 'Confirmed',
   };
-  return statusMap[apiStatus?.toLowerCase()] || apiStatus || 'Pending';
+  const normalizedStatus = apiStatus?.toUpperCase();
+  return statusMap[normalizedStatus] || statusMap[apiStatus?.toLowerCase()] || 'Pending';
 };
 
 // [Data Sync] Map OrderStatus to API status
+// Maps frontend status to Java enum (uppercase)
 const mapOrderStatusToApiStatus = (orderStatus: string): string => {
   const statusMap: Record<string, string> = {
-    'Pending': 'pending',
-    'In Progress': 'preparing',
-    'Ready': 'ready',
-    'Delivering': 'delivering',
-    'Delivered': 'delivered',
-    'Cancelled': 'cancelled',
-    'Confirmed': 'confirmed',
+    'Pending': 'PENDING',
+    'Confirmed': 'CONFIRMED',
+    'In Progress': 'PREPARING',
+    'Ready': 'READY',
+    'Delivering': 'DELIVERING',
+    'Delivered': 'DELIVERED',
+    'Cancelled': 'CANCELLED',
   };
-  return statusMap[orderStatus] || orderStatus?.toLowerCase() || 'pending';
+  return statusMap[orderStatus] || 'PENDING';
 };
 
 // [Fix 500 Error] Track if error was already logged to prevent spam
@@ -517,7 +551,9 @@ export const patchOrder = async (id: string, updates: Partial<any>): Promise<any
     
     apiUpdates.updatedAt = Date.now();
     
-    const response = await apiClient.patch(`/orders/${id}`, apiUpdates);
+    // Convert order ID to lowercase for case-sensitive Spring Boot routes
+    const orderIdLowerCase = id.toLowerCase();
+    const response = await apiClient.patch(`/orders/${orderIdLowerCase}`, apiUpdates);
     return mapApiOrderToOrder(response.data);
   } catch (error) {
     console.error('[OrderApiService] Error patching order:', error);
