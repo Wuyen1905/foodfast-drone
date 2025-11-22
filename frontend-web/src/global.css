@@ -1,0 +1,6 @@
+/* Global CSS - Design Token System */
+/* Import design tokens and theme last in cascade for proper override */
+
+@import './styles/_tokens.css';
+@import './styles/_theme.css';
+

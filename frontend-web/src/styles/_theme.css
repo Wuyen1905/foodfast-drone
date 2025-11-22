@@ -1,0 +1,91 @@
+body {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: "Inter", "Segoe UI", sans-serif;
+  transition: background 0.3s var(--motion-smooth);
+}
+
+.card, .panel, .surface {
+  background: var(--color-surface);
+  box-shadow: 0 1px 4px var(--color-shadow);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.button-primary {
+  background: var(--color-primary);
+  color: #fff;
+  transition: background 0.2s var(--motion-smooth);
+}
+
+.button-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.drone-icon {
+  filter: drop-shadow(0 2px 4px var(--drone-shadow));
+  transition: transform 0.3s var(--motion-smooth);
+}
+
+.drone-icon:hover {
+  transform: scale(1.05);
+}
+
+/* Base surface + text (safe overrides with higher specificity) */
+:root body, body {
+  background: var(--color-bg) !important;
+  color: var(--color-text-primary) !important;
+}
+
+/* Map surface (try common selectors, do not change markup) */
+.map, .map-container, .drone-map, [data-drone-map], #map, .map-surface {
+  background: linear-gradient(180deg, #fbfbfb, #f4f4f4) !important;
+  outline: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px var(--color-shadow);
+}
+
+/* Styled-components map view override (targets any div with map-like styling) */
+div[class*="MapView"], div[class*="map-view"], div[class*="Map"] {
+  background: linear-gradient(180deg, #fbfbfb, #f4f4f4) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: 0 1px 4px var(--color-shadow) !important;
+}
+
+/* Buttons keep brand tone */
+.button-primary, .btn-primary, button.is-primary {
+  background: var(--color-primary) !important;
+  color: #fff !important;
+}
+
+.button-primary:hover, .btn-primary:hover, button.is-primary:hover {
+  background: var(--color-primary-hover) !important;
+}
+
+/* Drone icon polish */
+.drone-icon, [data-drone-icon] {
+  filter: drop-shadow(0 2px 4px var(--drone-shadow));
+  transition: transform 0.3s var(--motion-smooth);
+}
+
+.drone-icon:hover, [data-drone-icon]:hover {
+  transform: scale(1.05);
+}
+
+/* If map uses inline styles or canvas - soft overlay */
+.map, .map-container, .drone-map, [data-drone-map], #map {
+  position: relative;
+  overflow: hidden;
+}
+
+.map::before, .map-container::before, .drone-map::before, [data-drone-map]::before, #map::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(245, 245, 245, 0.4));
+}
+
+/* Cache bust */
+html[data-skin-version="v1"] { }
+
