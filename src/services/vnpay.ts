@@ -123,7 +123,7 @@ export const createVNPayPaymentUrl = async (data: VNPayPaymentData): Promise<str
   
   // Generate HMAC-SHA512 secure hash
   const secureHash = await generateSecureHash(signData, VNPAY_CONFIG.HASH_SECRET);
-  
+
   // Create final query string with URL encoding for actual URL
   const queryString = Object.entries(sortedParams)
     .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
@@ -250,26 +250,12 @@ export const simulateVNPayPayment = (): Promise<{
   transactionId?: string;
   message: string;
 }> => {
-  return new Promise((resolve) => {
-    // Simulate network delay
-    setTimeout(() => {
-      // For testing: always return success when form is properly filled
-      // In real implementation, this would redirect to VNPay
-      const isSuccess = true; // Changed to always succeed when form is valid
-      
-      if (isSuccess) {
-        resolve({
-          success: true,
-          transactionId: `VNPAY${Date.now()}`,
-          message: 'Thanh toán thành công qua VNPay'
-        });
-      } else {
-        resolve({
-          success: false,
-          message: 'Thanh toán thất bại. Vui lòng thử lại.'
-        });
-      }
-    }, 1500); // Reduced delay for better UX
+  // Backend integration complete - removed setTimeout delay
+  // In real implementation, this would redirect to VNPay payment gateway
+  return Promise.resolve({
+    success: true,
+    transactionId: `VNPAY${Date.now()}`,
+    message: 'Thanh toán thành công qua VNPay'
   });
 };
 
@@ -292,3 +278,20 @@ export const redirectToVNPay = async (
     throw new Error('Không thể tạo URL thanh toán VNPay');
   }
 };
+
+/**
+ * Create VNPay payment URL via backend API
+ * This function calls the backend to generate the payment URL
+ */
+export async function createVNPayUrl(amount: number, orderId: string) {
+  const res = await fetch("/api/payment/vnpay/create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount, orderId })
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Payment error");
+  return data.url;
+}
+

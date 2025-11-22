@@ -1,8 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { Order } from '@/types/auth';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import { formatVND } from '@/utils/currency';
+
+// Load orders from backend API
+const loadOrders = async (): Promise<Order[]> => {
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+    const response = await fetch(`${API_BASE_URL}/orders`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch orders: ${response.status}`);
+    }
+    const orders = await response.json();
+    
+    // Map backend orders to frontend Order format
+    return Array.isArray(orders) ? orders.map((o: any) => ({
+      id: o.id,
+      userId: o.userId || '',
+      restaurantId: o.restaurantId || o.restaurant || '',
+      items: (o.items || []).map((item: any) => ({
+        id: item.id?.toString() || '',
+        productId: item.productId || '',
+        productName: item.name || item.productName || '',
+        quantity: item.quantity || item.qty || 1,
+        price: item.price || 0
+      })),
+      total: o.total || 0,
+      status: o.status || 'Pending',
+      createdAt: o.createdAt || Date.now(),
+      updatedAt: o.updatedAt || Date.now(),
+      deliveryAddress: o.address || o.deliveryAddress || '',
+      paymentMethod: o.paymentMethod
+    })) : [];
+  } catch (error) {
+    console.error('[AdminOrders] Error loading orders:', error);
+    return [];
+  }
+};
 
 const Container = styled.div`
   min-height: 100vh;
@@ -133,67 +168,26 @@ const StatusBadge = styled.span<{ $status: string }>`
 `;
 
 const AdminOrders: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: 'ORD-001',
-      userId: 'u2',
-      restaurantId: 'rest_1',
-      items: [
-        { id: 'item1', productId: 'prod1', productName: 'Burger Deluxe', quantity: 2, price: 15.99 },
-        { id: 'item2', productId: 'prod2', productName: 'French Fries', quantity: 1, price: 5.99 }
-      ],
-      total: 37.97,
-      status: 'delivered',
-      createdAt: Date.now() - 86400000 * 2,
-      updatedAt: Date.now() - 86400000 * 1,
-      deliveryAddress: '123 Main St, City',
-      paymentMethod: 'Credit Card'
-    },
-    {
-      id: 'ORD-002',
-      userId: 'u3',
-      restaurantId: 'rest_2',
-      items: [
-        { id: 'item3', productId: 'prod3', productName: 'Chocolate Cake', quantity: 1, price: 12.99 }
-      ],
-      total: 12.99,
-      status: 'delivering',
-      createdAt: Date.now() - 3600000 * 2,
-      updatedAt: Date.now() - 3600000 * 1,
-      deliveryAddress: '456 Oak Ave, City',
-      paymentMethod: 'Cash'
-    },
-    {
-      id: 'ORD-003',
-      userId: 'u2',
-      restaurantId: 'rest_1',
-      items: [
-        { id: 'item4', productId: 'prod4', productName: 'Pizza Margherita', quantity: 1, price: 18.99 }
-      ],
-      total: 18.99,
-      status: 'preparing',
-      createdAt: Date.now() - 1800000,
-      updatedAt: Date.now() - 900000,
-      deliveryAddress: '789 Pine St, City',
-      paymentMethod: 'Credit Card'
-    },
-    {
-      id: 'ORD-004',
-      userId: 'u3',
-      restaurantId: 'rest_2',
-      items: [
-        { id: 'item5', productId: 'prod5', productName: 'Tiramisu', quantity: 2, price: 8.99 }
-      ],
-      total: 17.98,
-      status: 'cancelled',
-      createdAt: Date.now() - 86400000 * 1,
-      updatedAt: Date.now() - 86400000 * 1,
-      deliveryAddress: '321 Elm St, City',
-      paymentMethod: 'Credit Card'
-    }
-  ]);
-
+  const [orders, setOrders] = useState<Order[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
+
+  // Load orders from backend on mount
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const data = await loadOrders();
+        setOrders(data);
+      } catch (error) {
+        console.error('Failed to load orders:', error);
+        setOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, []);
 
   const handleViewOrder = (orderId: string) => {
     console.log('View order:', orderId);
@@ -235,22 +229,15 @@ const AdminOrders: React.FC = () => {
     return statusMap[status] || status;
   };
 
+  // Placeholder functions - TODO: Backend integration in Phase 2
   const getUserName = (userId: string) => {
-    const userNames: { [key: string]: string } = {
-      'u2': 'John Doe',
-      'u3': 'Jane Smith',
-      'u4': 'Mike Johnson'
-    };
-    return userNames[userId] || 'Người dùng không xác định';
+    // TODO: Fetch user name from backend API
+    return 'Người dùng không xác định';
   };
 
   const getRestaurantName = (restaurantId: string) => {
-    const restaurantNames: { [key: string]: string } = {
-      'rest_1': 'FoodFast Restaurant',
-      'rest_2': 'SweetDreams Bakery',
-      'rest_3': 'Pizza Palace'
-    };
-    return restaurantNames[restaurantId] || 'Nhà hàng không xác định';
+    // TODO: Fetch restaurant name from backend API
+    return 'Nhà hàng không xác định';
   };
 
   return (
@@ -277,21 +264,26 @@ const AdminOrders: React.FC = () => {
       </Header>
 
       <TableContainer>
-        <Table>
-          <thead>
-            <tr>
-              <TableHeader>Mã đơn hàng</TableHeader>
-              <TableHeader>Khách hàng</TableHeader>
-              <TableHeader>Nhà hàng</TableHeader>
-              <TableHeader>Các mục</TableHeader>
-              <TableHeader>Tổng</TableHeader>
-              <TableHeader>Trạng thái</TableHeader>
-              <TableHeader>Đã tạo</TableHeader>
-              <TableHeader>Các hành động</TableHeader>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredOrders.map((order) => (
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Đang tải...</div>
+        ) : filteredOrders.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Không có đơn hàng nào</div>
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <TableHeader>Mã đơn hàng</TableHeader>
+                <TableHeader>Khách hàng</TableHeader>
+                <TableHeader>Nhà hàng</TableHeader>
+                <TableHeader>Các mục</TableHeader>
+                <TableHeader>Tổng</TableHeader>
+                <TableHeader>Trạng thái</TableHeader>
+                <TableHeader>Đã tạo</TableHeader>
+                <TableHeader>Các hành động</TableHeader>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredOrders.map((order) => (
               <TableRow key={order.id}>
                 <TableCell>
                   <strong>{order.id}</strong>
@@ -328,9 +320,10 @@ const AdminOrders: React.FC = () => {
                   )}
                 </TableCell>
               </TableRow>
-            ))}
-          </tbody>
-        </Table>
+              ))}
+            </tbody>
+          </Table>
+        )}
       </TableContainer>
     </Container>
   );

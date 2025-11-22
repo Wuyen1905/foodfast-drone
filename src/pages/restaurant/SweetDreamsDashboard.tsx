@@ -454,7 +454,9 @@ const SweetDreamsDashboard: React.FC = () => {
         setError("Không thể tải dữ liệu nhà hàng. Vui lòng thử lại.");
         toast.error("Lỗi tải dữ liệu!");
       } finally {
-        setLoading(false);
+        setTimeout(() => {
+          setLoading(false);
+        }, 5000);
       }
     };
 

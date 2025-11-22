@@ -140,7 +140,9 @@ export const products: Product[] = [
 
 // Helper function to get product image
 export const getProductImage = (product: Product): string => {
-  return product.image || '/images/default-dish.jpg';
+  // Backend returns imageUrl field, mapped to "image" via @JsonProperty
+  // Support both image and imageUrl for compatibility
+  return product.image || (product as any).imageUrl || '/images/default-dish.jpg';
 };
 
 export default products;

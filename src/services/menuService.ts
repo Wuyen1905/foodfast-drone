@@ -1,69 +1,81 @@
 // Centralized Menu Service for unified data management
-import products, { Product } from '@/data/products';
+import { Product } from '@/data/products';
+import axios from 'axios';
 
-// Simulate API delay
-const simulateDelay = (min: number = 300, max: number = 800): Promise<void> => {
-  const delay = Math.random() * (max - min) + min;
-  return new Promise(resolve => setTimeout(resolve, delay));
-};
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-// Load products from localStorage or use default
-const loadProducts = (): Product[] => {
-  const stored = localStorage.getItem("foodfast_products");
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (error) {
-      console.error("Error parsing stored products:", error);
-      return products;
-    }
-  }
-  return products;
-};
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-// Save products to localStorage
-const saveProducts = (productsToSave: Product[]): void => {
-  localStorage.setItem("foodfast_products", JSON.stringify(productsToSave));
+// Map restaurant name to backend restaurant identifier
+const mapRestaurantToBackend = (restaurant: "SweetDreams" | "Aloha"): string => {
+  const map: Record<string, string> = {
+    'SweetDreams': 'SweetDreams',
+    'Aloha': 'Aloha'
+  };
+  return map[restaurant] || restaurant;
 };
 
 // Get all products
 export const getAllProducts = async (): Promise<Product[]> => {
-  await simulateDelay();
-  return loadProducts();
+  try {
+    const response = await apiClient.get('/products');
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    console.error('[menuService] Error fetching all products:', error);
+    return [];
+  }
 };
 
 // Get products by restaurant
 export const getMenuByRestaurant = async (restaurant: "SweetDreams" | "Aloha"): Promise<Product[]> => {
-  await simulateDelay();
-  const allProducts = loadProducts();
-  return allProducts.filter(product => product.restaurant === restaurant);
+  try {
+    const restaurantParam = mapRestaurantToBackend(restaurant);
+    const response = await apiClient.get('/products', {
+      params: { restaurant: restaurantParam }
+    });
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error) {
+    console.error('[menuService] Error fetching menu by restaurant:', error);
+    return [];
+  }
 };
 
 // Get available products by restaurant (for customer menu)
 export const getAvailableMenuByRestaurant = async (restaurant: "SweetDreams" | "Aloha"): Promise<Product[]> => {
-  await simulateDelay();
-  const allProducts = loadProducts();
-  return allProducts.filter(product => 
-    product.restaurant === restaurant && product.available
-  );
+  try {
+    const restaurantParam = mapRestaurantToBackend(restaurant);
+    const response = await apiClient.get('/products', {
+      params: { restaurant: restaurantParam }
+    });
+    const products = Array.isArray(response.data) ? response.data : [];
+    // Filter to only available products
+    return products.filter((p: Product) => p.available !== false);
+  } catch (error) {
+    console.error('[menuService] Error fetching available menu:', error);
+    return [];
+  }
 };
 
 // Add new menu item
 export const addMenuItem = async (item: Omit<Product, 'id'>): Promise<Product> => {
-  await simulateDelay();
-  
-  const allProducts = loadProducts();
-  const newId = `${item.restaurant.toLowerCase().replace('sweetdreams', 'sd').replace('aloha', 'ak')}-${Date.now()}`;
-  
-  const newItem: Product = {
-    ...item,
-    id: newId
-  };
-  
-  allProducts.push(newItem);
-  saveProducts(allProducts);
-  
-  return newItem;
+  try {
+    // Generate ID if not provided
+    const productWithId = {
+      ...item,
+      id: item.id || `product-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    };
+    const response = await apiClient.post('/products', productWithId);
+    return response.data;
+  } catch (error) {
+    console.error('[menuService] Error adding menu item:', error);
+    throw error;
+  }
 };
 
 // Update menu item (with restaurant validation)
@@ -72,31 +84,13 @@ export const updateMenuItem = async (
   updatedItem: Partial<Product>,
   restaurantContext?: "SweetDreams" | "Aloha"
 ): Promise<Product | null> => {
-  await simulateDelay();
-  
-  const allProducts = loadProducts();
-  const index = allProducts.findIndex(p => p.id === id);
-  
-  if (index === -1) return null;
-  
-  const existingProduct = allProducts[index];
-  
-  // Enforce restaurant restriction: restaurants can only update their own products
-  if (restaurantContext && existingProduct.restaurant !== restaurantContext) {
-    console.warn(`Restaurant ${restaurantContext} attempted to update product from ${existingProduct.restaurant}`);
+  try {
+    const response = await apiClient.patch(`/products/${id}`, updatedItem);
+    return response.data;
+  } catch (error) {
+    console.error('[menuService] Error updating menu item:', error);
     return null;
   }
-  
-  // Prevent changing restaurant assignment via update
-  const safeUpdate = { ...updatedItem };
-  if ('restaurant' in safeUpdate && safeUpdate.restaurant !== existingProduct.restaurant) {
-    delete safeUpdate.restaurant;
-  }
-  
-  allProducts[index] = { ...allProducts[index], ...safeUpdate };
-  saveProducts(allProducts);
-  
-  return allProducts[index];
 };
 
 // Delete menu item (with restaurant validation)
@@ -104,25 +98,13 @@ export const deleteMenuItem = async (
   id: string,
   restaurantContext?: "SweetDreams" | "Aloha"
 ): Promise<boolean> => {
-  await simulateDelay();
-  
-  const allProducts = loadProducts();
-  const index = allProducts.findIndex(p => p.id === id);
-  
-  if (index === -1) return false;
-  
-  const existingProduct = allProducts[index];
-  
-  // Enforce restaurant restriction: restaurants can only delete their own products
-  if (restaurantContext && existingProduct.restaurant !== restaurantContext) {
-    console.warn(`Restaurant ${restaurantContext} attempted to delete product from ${existingProduct.restaurant}`);
+  try {
+    await apiClient.delete(`/products/${id}`);
+    return true;
+  } catch (error) {
+    console.error('[menuService] Error deleting menu item:', error);
     return false;
   }
-  
-  allProducts.splice(index, 1);
-  saveProducts(allProducts);
-  
-  return true;
 };
 
 // Search products by restaurant
@@ -132,42 +114,58 @@ export const searchProductsByRestaurant = async (
   category?: string,
   availableOnly: boolean = false
 ): Promise<Product[]> => {
-  await simulateDelay();
-  
-  const allProducts = loadProducts();
-  let filtered = allProducts.filter(product => product.restaurant === restaurant);
-  
-  if (availableOnly) {
-    filtered = filtered.filter(product => product.available);
+  try {
+    const restaurantParam = mapRestaurantToBackend(restaurant);
+    const response = await apiClient.get('/products', {
+      params: { restaurant: restaurantParam }
+    });
+    let products = Array.isArray(response.data) ? response.data : [];
+    
+    // Filter by availability if needed
+    if (availableOnly) {
+      products = products.filter((p: Product) => p.available !== false);
+    }
+    
+    // Filter by category if provided
+    if (category && category !== 'Tất cả') {
+      products = products.filter((p: Product) => p.category === category);
+    }
+    
+    // Filter by search query
+    if (query) {
+      const lowerQuery = query.toLowerCase();
+      products = products.filter((p: Product) => 
+        p.name.toLowerCase().includes(lowerQuery) ||
+        p.description?.toLowerCase().includes(lowerQuery)
+      );
+    }
+    
+    return products;
+  } catch (error) {
+    console.error('[menuService] Error searching products:', error);
+    return [];
   }
-  
-  if (query) {
-    const searchQuery = query.toLowerCase();
-    filtered = filtered.filter(product => 
-      product.name.toLowerCase().includes(searchQuery) ||
-      product.description?.toLowerCase().includes(searchQuery) ||
-      product.ingredients?.some(ingredient => 
-        ingredient.toLowerCase().includes(searchQuery)
-      )
-    );
-  }
-  
-  if (category && category !== 'Tất cả') {
-    filtered = filtered.filter(product => product.category === category);
-  }
-  
-  return filtered;
 };
 
 // Get categories by restaurant
 export const getCategoriesByRestaurant = async (restaurant: "SweetDreams" | "Aloha"): Promise<string[]> => {
-  await simulateDelay();
-  
-  const allProducts = loadProducts();
-  const restaurantProducts = allProducts.filter(product => product.restaurant === restaurant);
-  const categories = [...new Set(restaurantProducts.map(product => product.category))];
-  
-  return ['Tất cả', ...categories.sort()];
+  try {
+    const restaurantParam = mapRestaurantToBackend(restaurant);
+    const response = await apiClient.get('/products', {
+      params: { restaurant: restaurantParam }
+    });
+    const products = Array.isArray(response.data) ? response.data : [];
+    const categories = new Set<string>(['Tất cả']);
+    products.forEach((p: Product) => {
+      if (p.category) {
+        categories.add(p.category);
+      }
+    });
+    return Array.from(categories);
+  } catch (error) {
+    console.error('[menuService] Error fetching categories:', error);
+    return ['Tất cả'];
+  }
 };
 
 // Get restaurant menu statistics
@@ -177,17 +175,35 @@ export const getRestaurantMenuStats = async (restaurant: "SweetDreams" | "Aloha"
   outOfStockDishes: number;
   categories: number;
 }> => {
-  await simulateDelay();
-  
-  const allProducts = loadProducts();
-  const restaurantProducts = allProducts.filter(product => product.restaurant === restaurant);
-  
-  return {
-    totalDishes: restaurantProducts.length,
-    availableDishes: restaurantProducts.filter(p => p.available).length,
-    outOfStockDishes: restaurantProducts.filter(p => !p.available).length,
-    categories: new Set(restaurantProducts.map(p => p.category)).size
-  };
+  try {
+    const restaurantParam = mapRestaurantToBackend(restaurant);
+    const response = await apiClient.get('/products', {
+      params: { restaurant: restaurantParam }
+    });
+    const products = Array.isArray(response.data) ? response.data : [];
+    const categories = new Set<string>();
+    
+    products.forEach((p: Product) => {
+      if (p.category) {
+        categories.add(p.category);
+      }
+    });
+    
+    return {
+      totalDishes: products.length,
+      availableDishes: products.filter((p: Product) => p.available !== false).length,
+      outOfStockDishes: products.filter((p: Product) => p.available === false).length,
+      categories: categories.size
+    };
+  } catch (error) {
+    console.error('[menuService] Error fetching menu stats:', error);
+    return {
+      totalDishes: 0,
+      availableDishes: 0,
+      outOfStockDishes: 0,
+      categories: 0
+    };
+  }
 };
 
 // Toggle product availability (with restaurant validation)
@@ -195,39 +211,30 @@ export const toggleProductAvailability = async (
   id: string,
   restaurantContext?: "SweetDreams" | "Aloha"
 ): Promise<Product | null> => {
-  await simulateDelay();
-  
-  const allProducts = loadProducts();
-  const index = allProducts.findIndex(p => p.id === id);
-  
-  if (index === -1) return null;
-  
-  const existingProduct = allProducts[index];
-  
-  // Enforce restaurant restriction: restaurants can only toggle their own products
-  if (restaurantContext && existingProduct.restaurant !== restaurantContext) {
-    console.warn(`Restaurant ${restaurantContext} attempted to toggle product from ${existingProduct.restaurant}`);
+  try {
+    // First get the product to get current availability
+    const getResponse = await apiClient.get(`/products/${id}`);
+    const currentProduct = getResponse.data;
+    
+    // Toggle availability
+    const updatedProduct = await updateMenuItem(id, {
+      available: !currentProduct.available
+    }, restaurantContext);
+    
+    return updatedProduct;
+  } catch (error) {
+    console.error('[menuService] Error toggling product availability:', error);
     return null;
   }
-  
-  allProducts[index].available = !allProducts[index].available;
-  saveProducts(allProducts);
-  
-  return allProducts[index];
 };
 
 // Get product by ID
 export const getProductById = async (id: string): Promise<Product | null> => {
-  await simulateDelay();
-  
-  const allProducts = loadProducts();
-  return allProducts.find(product => product.id === id) || null;
-};
-
-// Initialize default data if localStorage is empty
-export const initializeDefaultData = (): void => {
-  const stored = localStorage.getItem("foodfast_products");
-  if (!stored) {
-    saveProducts(products);
+  try {
+    const response = await apiClient.get(`/products/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('[menuService] Error fetching product by ID:', error);
+    return null;
   }
 };

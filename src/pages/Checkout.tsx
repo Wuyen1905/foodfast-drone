@@ -4,7 +4,7 @@ import { useOrders } from "@/context/OrderContext";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context";
 import { formatVND } from "../utils/currency";
-import { createVNPayPaymentUrl, simulateVNPayPayment } from "../services/vnpay";
+import { createVNPayUrl } from "../services/vnpay";
 import styled from "styled-components";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
@@ -348,14 +348,6 @@ const Checkout: React.FC = () => {
         try {
           const paymentOrderId = `ORDER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           
-          // Create VNPay payment URL
-          const paymentUrl = await createVNPayPaymentUrl({
-              amount: splitResult.totalAmount,
-            orderInfo: `Thanh toan don hang ${paymentOrderId}`,
-            orderId: paymentOrderId,
-            returnUrl: `${window.location.origin}/vnpay-return`,
-          });
-          
             // Store split order data in sessionStorage for callback processing
           const orderData = {
             name: form.name,
@@ -372,86 +364,9 @@ const Checkout: React.FC = () => {
           
           sessionStorage.setItem('vnpay_pending_order', JSON.stringify(orderData));
           
-          // For demo/simulation: Use simulate function
-          const paymentResult = await simulateVNPayPayment();
-          
-          if (paymentResult.success) {
-              try {
-            // Create orders from split result
-            const createdOrders = createOrdersFromSplit(splitResult, {
-              name: form.name,
-              phone: form.phone,
-              address: `${form.street}, ${form.district}, ${form.city}`,
-                  items: checkoutItems,
-              paymentMethod: 'vnpay',
-              paymentStatus: 'completed',
-              vnpayTransactionId: paymentResult.transactionId,
-              userId: user?.id,
-              note: form.note
-            });
-            
-                // [Data Sync] Add all orders at once
-                await addOrders(createdOrders);
-                
-                // [Fix 500 Error] Order creation succeeded (addOrders handles errors internally)
-                console.log(`[SYNC OK ✅] Web created ${createdOrders.length} order(s) via VNPay in shared API:`, createdOrders.map(o => o.id).join(', '));
-            
-            // Notify each restaurant about their order
-            for (const order of createdOrders) {
-              if (order.restaurantId) {
-                notifyRestaurant(order).catch(err => {
-                      // Silent fail for restaurant notification
-                });
-              }
-            }
-            
-                // Clear checkoutItems and cart after successful checkout
-                sessionStorage.removeItem('checkoutItems');
-            sessionStorage.removeItem('vnpay_pending_order');
-                clear(); // Clear entire cart since all items were processed
-            
-            toast.success("Thanh toán VNPay thành công!");
-            
-            // Generate payment confirmation code (FD-XXXX format)
-            const generateConfirmationCode = () => {
-              const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit number
-              return `FD-${randomNum}`;
-            };
-            
-            // Use paymentSessionId as confirmation code, or generate fallback
-            const confirmationCode = splitResult.paymentSessionId || generateConfirmationCode();
-            
-            // Navigate to confirmation with first order ID, payment session ID, and confirmation code
-            const firstOrderId = createdOrders[0]?.id || '';
-            navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}&confirmationCode=${encodeURIComponent(confirmationCode)}`);
-              } catch (error: any) {
-                // [Fix 500 Error] Handle order creation error gracefully
-                // addOrders already handles errors and adds orders locally, so we can continue
-                console.error('[Checkout] API Error: Order creation failed, using local fallback');
-                
-                // Clear cart and navigate even if API fails (orders are saved locally)
-                sessionStorage.removeItem('checkoutItems');
-                sessionStorage.removeItem('vnpay_pending_order');
-                clear();
-                
-                toast.success("Thanh toán VNPay thành công!");
-                
-                // Generate payment confirmation code (FD-XXXX format)
-                const generateConfirmationCode = () => {
-                  const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit number
-                  return `FD-${randomNum}`;
-                };
-                
-                // Use paymentSessionId as confirmation code, or generate fallback
-                const confirmationCode = splitResult.paymentSessionId || generateConfirmationCode();
-                
-                const firstOrderId = splitResult.orders[0]?.restaurantId ? `ORDER-${Date.now()}` : '';
-                navigate(`/order-confirmation?orderId=${firstOrderId}&paymentSessionId=${splitResult.paymentSessionId}&confirmationCode=${encodeURIComponent(confirmationCode)}`);
-              }
-          } else {
-            toast.error(paymentResult.message);
-            sessionStorage.removeItem('vnpay_pending_order');
-          }
+          // Create VNPay payment URL via backend API
+          const url = await createVNPayUrl(splitResult.totalAmount, paymentOrderId);
+          window.location.href = url;
         } catch (error) {
           console.error('[VNPay] Payment error:', error);
           toast.error('Không thể tạo URL thanh toán VNPay. Vui lòng thử lại.');
@@ -586,14 +501,6 @@ const Checkout: React.FC = () => {
             // Generate unique order ID for payment reference
             const paymentOrderId = orderId;
             
-            // Create VNPay payment URL
-            const paymentUrl = await createVNPayPaymentUrl({
-              amount: total,
-              orderInfo: `Thanh toan don hang ${paymentOrderId}`,
-              orderId: paymentOrderId,
-              returnUrl: `${window.location.origin}/vnpay-return`,
-            });
-            
             // Store order data in sessionStorage for callback processing
             const orderData = {
               order: newOrder,
@@ -603,74 +510,13 @@ const Checkout: React.FC = () => {
             
             sessionStorage.setItem('vnpay_pending_order', JSON.stringify(orderData));
             
-            // For demo/simulation: Use simulate function
-            const paymentResult = await simulateVNPayPayment();
-            
-            if (paymentResult.success) {
-              try {
-                // [Restore Full Checkout] Create single order with payment info
-                const orderWithPayment: Order = {
-                  ...newOrder,
-                  paymentStatus: 'completed',
-                  vnpayTransactionId: paymentResult.transactionId,
-                };
-                
-                // [Data Sync] Add single order to API
-                await addOrder(orderWithPayment);
-                
-                // [Fix 500 Error] Order creation succeeded (addOrder handles errors internally)
-                console.log(`[SYNC OK ✅] Web created single order via VNPay in shared API:`, orderWithPayment.id);
-                
-                // Notify restaurant if order has restaurantId
-                if (orderWithPayment.restaurantId) {
-                  notifyRestaurant(orderWithPayment).catch(err => {
-                    // Silent fail for restaurant notification
-                  });
-                }
-                
-                // [Restore Full Checkout] Clear checkoutItems and cart after successful checkout
-                // If per-restaurant checkout, only remove those items from cart
-                if (hasCheckoutItems) {
-                  removeItems(checkoutItems);
-                  sessionStorage.removeItem('checkoutItems');
-                } else {
-                  clear(); // Clear entire cart since all items were processed
-                  sessionStorage.removeItem('checkoutItems');
-                }
-                sessionStorage.removeItem('vnpay_pending_order');
-                
-                toast.success("Thanh toán VNPay thành công!");
-                
-                // Navigate to confirmation with order ID
-                navigate(`/order-confirmation?orderId=${orderWithPayment.id}`);
-              } catch (error: any) {
-                // [Fix 500 Error] Handle order creation error gracefully
-                // addOrder already handles errors and adds order locally, so we can continue
-                console.error('[Checkout] API Error: Order creation failed, using local fallback');
-                
-                // Clear cart and navigate even if API fails (order is saved locally)
-                if (hasCheckoutItems) {
-                  removeItems(checkoutItems);
-                  sessionStorage.removeItem('checkoutItems');
-                } else {
-        clear();
-                  sessionStorage.removeItem('checkoutItems');
-                }
-                sessionStorage.removeItem('vnpay_pending_order');
-                
-                toast.success("Thanh toán VNPay thành công!");
-                navigate(`/order-confirmation?orderId=${newOrder.id}`);
-              }
-            } else {
-              toast.error(paymentResult.message);
-              sessionStorage.removeItem('vnpay_pending_order');
-            }
+            // Create VNPay payment URL via backend API
+            const url = await createVNPayUrl(total, paymentOrderId);
+            window.location.href = url;
           } catch (error) {
             console.error('[VNPay] Payment error:', error);
             toast.error('Không thể tạo URL thanh toán VNPay. Vui lòng thử lại.');
             sessionStorage.removeItem('vnpay_pending_order');
-          } finally {
-            setShowVNPayModal(false);
           }
         } else {
           // [Restore Full Checkout] Create single order for COD payment

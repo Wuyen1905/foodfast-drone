@@ -6,7 +6,7 @@
 
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export interface RealtimeStats {
   totalOrders: number;
@@ -28,39 +28,25 @@ let subscribers: Set<(stats: RealtimeStats) => void> = new Set();
 let subscribersOrderUpdates: Set<(updates: OrderUpdate[]) => void> = new Set();
 
 /**
- * Fetch realtime order statistics from mock API
- * Enhanced to calculate stats from orders if realtimeStats endpoint doesn't exist
+ * Fetch realtime order statistics from backend API
+ * Uses dedicated /api/realtimeStats endpoint
  */
 export const fetchRealtimeStats = async (): Promise<RealtimeStats> => {
   try {
-    // Try to fetch from realtimeStats endpoint first
-    try {
-      const response = await axios.get(`${API_BASE_URL}/realtimeStats`);
-      if (response.data) {
-        return response.data;
-      }
-    } catch (endpointError) {
-      // Endpoint doesn't exist, calculate from orders
-      console.log('[adminRealtime] realtimeStats endpoint not found, calculating from orders');
-    }
+    const response = await axios.get(`${API_BASE_URL}/realtimeStats`);
+    const stats = response.data;
     
-    // Fallback: Calculate from orders endpoint
-    const ordersResponse = await axios.get(`${API_BASE_URL}/orders`);
-    const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : [];
-    
-    // Calculate stats from orders
-    const stats: RealtimeStats = {
-      totalOrders: orders.length,
-      pending: orders.filter((o: any) => o.status === 'pending' || o.status === 'preparing').length,
-      inProgress: orders.filter((o: any) => o.status === 'ready' || o.status === 'delivering').length,
-      delivered: orders.filter((o: any) => o.status === 'delivered' || o.status === 'Hoàn thành').length,
-      cancelled: orders.filter((o: any) => o.status === 'cancelled' || o.status === 'cancelled').length
+    // Backend already returns RealtimeStats format
+    return {
+      totalOrders: stats.totalOrders || 0,
+      pending: stats.pending || 0,
+      inProgress: stats.inProgress || 0,
+      delivered: stats.delivered || 0,
+      cancelled: stats.cancelled || 0
     };
-    
-    return stats;
   } catch (error) {
     console.error('[adminRealtime] Error fetching stats:', error);
-    // Fallback to default stats
+    // Return default stats on error
     return {
       totalOrders: 0,
       pending: 0,

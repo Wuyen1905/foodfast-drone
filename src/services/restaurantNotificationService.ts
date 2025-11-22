@@ -30,47 +30,34 @@ export const notifyRestaurant = async (order: Order): Promise<boolean> => {
     // Normalize restaurant ID to handle different formats
     restaurantId = normalizeRestaurantId(restaurantId);
 
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Send notification to backend API
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+      
+      // Backend automatically creates notifications when orders are created
+      // This function is kept for backward compatibility and custom events
+      const notification = {
+        orderId: order.id,
+        restaurantId: restaurantId,
+        customerName: order.name,
+        customerPhone: order.phone,
+        total: order.total,
+        status: order.status,
+        timestamp: Date.now(),
+        items: order.items
+      };
 
-    // In a real application, this would be:
-    // await fetch(`/api/restaurant/${restaurantId}/notify`, {
-    //   method: 'POST',
-    //   body: JSON.stringify(order),
-    //   headers: { 'Content-Type': 'application/json' }
-    // });
+      // Trigger a custom event for real-time updates (if restaurant dashboard is open)
+      window.dispatchEvent(new CustomEvent('newOrderNotification', {
+        detail: notification
+      }));
 
-    // For now, we'll store the notification in localStorage
-    // This allows restaurant dashboards to detect new orders
-    const notificationKey = `restaurant_notification_${restaurantId}`;
-    const existingNotifications = JSON.parse(
-      localStorage.getItem(notificationKey) || '[]'
-    );
-    
-    const notification = {
-      orderId: order.id,
-      restaurantId: restaurantId,
-      customerName: order.name,
-      customerPhone: order.phone,
-      total: order.total,
-      status: order.status,
-      timestamp: Date.now(),
-      items: order.items
-    };
-
-    existingNotifications.push(notification);
-    
-    // Keep only last 50 notifications
-    const recentNotifications = existingNotifications.slice(-50);
-    localStorage.setItem(notificationKey, JSON.stringify(recentNotifications));
-
-    // Trigger a custom event for real-time updates (if restaurant dashboard is open)
-    window.dispatchEvent(new CustomEvent('newOrderNotification', {
-      detail: notification
-    }));
-
-    console.log(`✅ Restaurant notification sent: ${restaurantId}`, notification);
-    return true;
+      console.log(`✅ Restaurant notification sent: ${restaurantId}`, notification);
+      return true;
+    } catch (error) {
+      console.error('[restaurantNotificationService] Error sending notification:', error);
+      return false;
+    }
   } catch (error) {
     console.error('Error notifying restaurant:', error);
     return false;

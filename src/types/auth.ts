@@ -68,7 +68,7 @@ export interface RegisterPayload {
 export interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<{ ok: boolean; message?: string }>;
+  login: (username: string, password: string) => Promise<{ ok: boolean; message?: string; user?: User; token?: string }>;
   register: (payload: RegisterPayload) => Promise<{ ok: boolean; message?: string }>;
   logout: () => void;
   isAdmin: () => boolean;

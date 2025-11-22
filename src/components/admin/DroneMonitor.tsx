@@ -29,7 +29,23 @@ import DroneSummaryBar from './DroneSummaryBar';
 import DroneDetailModal from './DroneDetailModal';
 import { getRestaurantById } from '../../services/adminService';
 import toast from 'react-hot-toast';
-import { mockDrones } from '../../data/mockDrones';
+// TODO: Backend integration in Phase 2 - removed mockDrones import
+
+// Fetch drones from backend API
+const fetchDrones = async (): Promise<any[]> => {
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+    const response = await fetch(`${API_BASE_URL}/drones`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch drones: ${response.status}`);
+    }
+    const drones = await response.json();
+    return Array.isArray(drones) ? drones : [];
+  } catch (error) {
+    console.error('[DroneMonitor] Error fetching drones:', error);
+    return [];
+  }
+};
 
 const Container = styled.div`
   background: white;
@@ -417,7 +433,12 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
   const [modalData, setModalData] = useState<{ drone: AdminDrone; action: 'flag' | 'clear' | 'reassign' | 'recall' | 'detail' } | null>(null);
   const [issueDescription, setIssueDescription] = useState('');
   const [selectedRestaurantId, setSelectedRestaurantId] = useState('');
-  const [restaurants, setRestaurants] = useState<AdminRestaurant[]>(getAllRestaurants());
+  const [restaurants, setRestaurants] = useState<AdminRestaurant[]>([]);
+  
+  // Load restaurants on mount
+  useEffect(() => {
+    getAllRestaurants().then(setRestaurants).catch(console.error);
+  }, []);
   
   // Enhanced real-time data
   const [realtimeDrones, setRealtimeDrones] = useState<DroneRealtimeData[]>([]);
@@ -490,14 +511,8 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
     };
   }) : [];
 
-  // Use mock drones if no real drones exist, otherwise use enhanced drones
-  const dronesToDisplay = enhancedDrones.length > 0 ? enhancedDrones : mockDrones.map(d => ({
-    ...d,
-    position: undefined,
-    speed: undefined,
-    connectionStatus: undefined,
-    eta: undefined
-  }));
+  // TODO: Backend integration in Phase 2 - removed mockDrones fallback
+  const dronesToDisplay = enhancedDrones.length > 0 ? enhancedDrones : [];
 
   // Group drones by restaurant
   const groupedDrones = dronesToDisplay.reduce((acc, drone) => {
@@ -511,7 +526,9 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
     return acc;
   }, {} as Record<string, { restaurantName: string; drones: (AdminDrone & Partial<DroneRealtimeData>)[] }>);
 
-  const filteredDrones = (restaurantDrones: (AdminDrone & Partial<DroneRealtimeData>)[]) => {
+  const filteredDrones = (
+    restaurantDrones: (AdminDrone & Partial<DroneRealtimeData>)[]
+  ) => {
     return restaurantDrones.filter(drone => 
       statusFilter === 'All' || drone.status === statusFilter
     );
@@ -521,7 +538,7 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
     setModalData({ drone, action });
     setIssueDescription(drone.issueDescription || '');
     setSelectedRestaurantId('');
-    setRestaurants(getAllRestaurants());
+    // Restaurants are already loaded in useEffect
     
     // For detail modal, find real-time data
     if (action === 'detail') {
@@ -559,36 +576,51 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
     }
   };
 
-  const handleDroneClick = (drone: AdminDrone & Partial<DroneRealtimeData>, mockRealtime?: DroneRealtimeData) => {
-    // Use provided mockRealtime if available, otherwise try to find in realtimeDrones
+  // Get drone realtime data from backend API
+  const getDroneRealtimeData = async (droneId: string): Promise<DroneRealtimeData | null> => {
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+      const response = await fetch(`${API_BASE_URL}/drones/${droneId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch drone data: ${response.status}`);
+      }
+      const drone = await response.json();
+      
+      // Map to DroneRealtimeData format
+      return {
+        id: drone.id,
+        restaurantId: drone.restaurantId || drone.restaurant || '',
+        restaurantName: drone.restaurantName || '',
+        status: drone.status || 'Idle',
+        battery: drone.battery || drone.batteryLevel || 100,
+        currentOrderId: drone.currentOrderId,
+        position: { lat: 10.762622, lng: 106.660172 }, // Default position
+        speed: 0,
+        connectionStatus: 'connected',
+        eta: undefined
+      };
+    } catch (error) {
+      console.error('[DroneMonitor] Error fetching drone realtime data:', error);
+      return null;
+    }
+  };
+
+  const handleDroneClick = async (drone: AdminDrone & Partial<DroneRealtimeData>, mockRealtime?: DroneRealtimeData) => {
+    // Try to find realtime data from realtimeDrones first
     const realtime = mockRealtime || realtimeDrones.find(rd => rd.id === drone.id);
     if (realtime) {
       setSelectedDrone(realtime);
       setDetailModalOpen(true);
-    } else if (enhancedDrones.length === 0) {
-      // For mock drones without realtime data, create it on the fly
-      const mockData: DroneRealtimeData = {
-        id: drone.id,
-        code: drone.id,
-        battery: drone.battery,
-        status: drone.status === 'Delivering' ? 'delivering' as const :
-                drone.status === 'Charging' ? 'charging' as const :
-                'active' as const,
-        restaurantId: drone.restaurantId,
-        orderId: drone.currentOrderId,
-        missionsCompleted: 0,
-        lastMaintenance: new Date(drone.lastMaintenance).toISOString(),
-        position: {
-          lat: 10.7769,
-          lng: 106.7009
-        },
-        speed: drone.status === 'Delivering' ? 20.5 : 0,
-        connectionStatus: 'online' as const,
-        eta: drone.status === 'Delivering' ? 12 : undefined,
-        lastUpdate: new Date().toISOString()
-      };
-      setSelectedDrone(mockData);
-      setDetailModalOpen(true);
+    } else {
+      // Fetch realtime data from API
+      const realtimeData = await getDroneRealtimeData(drone.id);
+      if (realtimeData) {
+        setSelectedDrone(realtimeData);
+        setDetailModalOpen(true);
+      } else {
+        // No realtime data available - could show error message
+        console.warn('No realtime data available for drone:', drone.id);
+      }
     }
   };
 
@@ -639,8 +671,8 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
     return `${days} days ago`;
   };
 
-  // Use mock drones if no real drones exist
-  const displayDrones = enhancedDrones.length > 0 ? enhancedDrones : mockDrones;
+  // TODO: Backend integration in Phase 2 - removed mockDrones fallback
+  const displayDrones = enhancedDrones.length > 0 ? enhancedDrones : [];
   
   const totalDrones = displayDrones.length;
   const statusCounts = {
@@ -731,30 +763,14 @@ const DroneMonitor: React.FC<DroneMonitorProps> = ({ drones, onUpdate }) => {
               
               <DroneGrid>
                 {filtered.map((drone, index) => {
-                  // For mock drones, create mock realtime data
-                  let realtime = realtimeDrones.find(rd => rd.id === drone.id);
-                  if (isMockData && !realtime) {
-                    realtime = {
-                      id: drone.id,
-                      code: drone.id,
-                      battery: drone.battery,
-                      status: drone.status === 'Delivering' ? 'delivering' as const :
-                              drone.status === 'Charging' ? 'charging' as const :
-                              'active' as const,
-                      restaurantId: drone.restaurantId,
-                      orderId: drone.currentOrderId,
-                      missionsCompleted: 0,
-                      lastMaintenance: new Date(drone.lastMaintenance).toISOString(),
-                      position: {
-                        lat: 10.7769 + (index * 0.001),
-                        lng: 106.7009 + (index * 0.001)
-                      },
-                      speed: drone.status === 'Delivering' ? 20.5 : 0,
-                      connectionStatus: 'online' as const,
-                      eta: drone.status === 'Delivering' ? 12 : undefined,
-                      lastUpdate: new Date().toISOString()
-                    } as DroneRealtimeData;
-                  }
+                  // TODO: Backend integration in Phase 2 - removed mock realtime data generation
+                  // Get realtime data from realtimeDrones (from backend API)
+                  const realtime = realtimeDrones.find(rd => rd.id === drone.id);
+                  // If no realtime data, use placeholder values (will be replaced with backend data in Phase 2)
+                  const position = realtime?.position || null;
+                  const speed = realtime?.speed || 0;
+                  const connectionStatus = realtime?.connectionStatus || 'offline' as const;
+                  const eta = realtime?.eta || undefined;
                   
                   const droneAlerts = getDroneAlerts(drone.id);
                   const hasAlert = droneAlerts.length > 0;

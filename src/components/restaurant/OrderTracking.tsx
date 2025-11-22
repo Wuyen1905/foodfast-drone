@@ -334,7 +334,7 @@ const getStatusLabel = (status: string): string => {
 };
 
 const OrderTracking: React.FC<OrderTrackingProps> = ({ restaurantId, theme }) => {
-  const { orders, updateOrderStatus, confirmOrder, rejectOrder, addOrderNote } = useOrders();
+  const { orders, updateOrderStatus, confirmOrder, rejectOrder, addOrderNote, refreshOrders } = useOrders();
   const [restaurantOrders, setRestaurantOrders] = useState<any[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -447,7 +447,7 @@ const OrderTracking: React.FC<OrderTrackingProps> = ({ restaurantId, theme }) =>
 
   // Listen for new order notifications
   useEffect(() => {
-    const handleNewOrder = (event: CustomEvent) => {
+    const handleNewOrder = async (event: CustomEvent) => {
       const notification = event.detail;
       if (notification.restaurantId) {
         // Refresh orders when new order notification arrives
@@ -465,17 +465,25 @@ const OrderTracking: React.FC<OrderTrackingProps> = ({ restaurantId, theme }) =>
         const normalizedNotificationId = normalizeId(notification.restaurantId);
         
         if (normalizedNotificationId === normalizedRestaurantId) {
-          // Trigger a refresh by updating orders from localStorage
-          const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-          // This will trigger the useEffect above
+          // Refresh orders from backend API via OrderContext
+          try {
+            await refreshOrders();
+            console.log('Order notification received, refreshed from backend');
+          } catch (error) {
+            console.error('[OrderTracking] Error refreshing orders:', error);
+          }
         }
       }
     };
 
-    const handleOrderUpdate = (event: CustomEvent) => {
-      // Refresh orders when order is updated
-      const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-      // This will trigger the useEffect above
+    const handleOrderUpdate = async (event: CustomEvent) => {
+      // Refresh orders from backend API via OrderContext
+      try {
+        await refreshOrders();
+        console.log('Order update received, refreshed from backend');
+      } catch (error) {
+        console.error('[OrderTracking] Error refreshing orders:', error);
+      }
     };
 
     window.addEventListener('newOrderNotification', handleNewOrder as EventListener);

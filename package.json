@@ -26,7 +26,6 @@
     "@hookform/resolvers": "^5.2.2",
     "@stomp/stompjs": "^7.2.1",
     "axios": "^1.7.2",
-    "axios-mock-adapter": "^2.1.0",
     "d3-array": "^3.2.4",
     "d3-color": "^3.1.0",
     "d3-interpolate": "^3.0.1",

@@ -390,25 +390,9 @@ const AdminDashboard: React.FC = () => {
         
         // Only update state if component is still mounted
         if (isMounted) {
-          // Fallback to mock data
-          setRestaurants([
-            { id: '1', name: 'Aloha Kitchen', status: 'Đang hoạt động', category: 'Asian Fusion', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 2 },
-            { id: '2', name: 'SweetDreams Bakery', status: 'Đang hoạt động', category: 'Bakery', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 3 }
-          ]);
-          setCustomers([]);
-          setDrones([]);
-          setLogs([]);
-          setStats({
-            totalRestaurants: 2,
-            totalCustomers: 0,
-            totalOrders: 0,
-            totalRevenue: 0,
-            totalDrones: 0,
-            activeRestaurants: 2,
-            activeDrones: 0,
-            pendingRestaurants: 0,
-            maintenanceDrones: 0
-          });
+          // TODO: Backend integration in Phase 2 - removed fallback to mock data
+          // Keep previous state on error - don't set mock data
+          // Error will be visible through empty arrays/objects
         }
       }
     };

@@ -1,12 +1,12 @@
 import SockJS from "sockjs-client";
 import { Stomp } from "@stomp/stompjs";
 
-// Use environment variable or fallback to proxy URL (via Vite proxy) or current origin
-// In dev mode, Vite proxy forwards /ws to http://localhost:8080/ws
-// In production, use the same origin as the frontend
-const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 
-                    (import.meta.env.DEV ? '' : window.location.origin);
-const WS_ENDPOINT = `${WS_BASE_URL}/ws`;
+// Use environment variable - required for production
+const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL;
+if (!WS_BASE_URL && !import.meta.env.DEV) {
+  console.error('[WebSocket] VITE_WS_BASE_URL environment variable is required for production');
+}
+const WS_ENDPOINT = WS_BASE_URL ? `${WS_BASE_URL}/ws` : 'http://localhost:8080/ws';
 
 let stompClient: any = null;
 let connected = false;
@@ -114,6 +114,8 @@ const connectInternal = (): Promise<boolean> => {
       };
       
       stompClient = Stomp.over(socket);
+      stompClient.heartbeatIncoming = 10000;
+      stompClient.heartbeatOutgoing = 10000;
       
       // Disable debug logs in production
       if (import.meta.env.DEV) {
@@ -134,28 +136,13 @@ const connectInternal = (): Promise<boolean> => {
           isConnecting = false;
           reconnectAttempts = 0; // Reset reconnect attempts on successful connection
           
-          console.log('[WebSocket] ✅ Connected to', WS_ENDPOINT);
+          console.log("[Realtime] Connected to WebSocket");
           
           // Subscribe to order updates topic
           if (stompClient.connected) {
-            const subscription = stompClient.subscribe("/topic/orders", (message: any) => {
-              if (message.body) {
-                try {
-                  const orderUpdate = JSON.parse(message.body);
-                  console.log('[WebSocket] 📦 Received order update:', orderUpdate.id, orderUpdate.status);
-                  
-                  // Notify all registered callbacks
-                  subscriptionCallbacks.forEach((callback) => {
-                    try {
-                      callback(orderUpdate);
-                    } catch (error) {
-                      console.error('[WebSocket] Error in subscription callback:', error);
-                    }
-                  });
-                } catch (error) {
-                  console.error('[WebSocket] Error parsing order update:', error);
-                }
-              }
+            stompClient.subscribe("/topic/orders", (msg: any) => {
+              const order = JSON.parse(msg.body);
+              subscriptionCallbacks.forEach((cb) => cb(order));
             });
             
             console.log('[WebSocket] ✅ Subscribed to /topic/orders');
@@ -314,3 +301,16 @@ export const sendOrderUpdate = (order: any) => {
 // Backward compatibility aliases for existing code
 export const connectOrderSocket = connectOrderSync;
 export const disconnectOrderSocket = disconnectOrderSync;
+
+// Create a realtimeSocket-like object for compatibility with patch pattern
+export const realtimeSocket = {
+  onOrderUpdate: (callback: (order: any) => void): (() => void) => {
+    subscriptionCallbacks.add(callback);
+    connectOrderSync(callback); // Ensure connection
+    
+    // Return unsubscribe function
+    return () => {
+      subscriptionCallbacks.delete(callback);
+    };
+  }
+};

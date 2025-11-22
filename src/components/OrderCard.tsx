@@ -68,28 +68,9 @@ const OrderCard: React.FC<Props> = ({ order, index, onViewDetails, isAdmin }) =>
   const [open, setOpen] = useState(false);
 
   const updateOrderStatus = (newStatus: string) => {
-    // Update order status in localStorage
-    const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.phone === order.userPhone);
-    
-    if (userIndex !== -1) {
-      const orderIndex = users[userIndex].orders.findIndex((o: any) => o.id === order.id);
-      if (orderIndex !== -1) {
-        users[userIndex].orders[orderIndex].status = newStatus;
-        localStorage.setItem('mock_users', JSON.stringify(users));
-        
-        // Update global order history
-        const history = JSON.parse(localStorage.getItem('orderHistory') || '[]');
-        const historyIndex = history.findIndex((o: any) => o.id === order.id);
-        if (historyIndex !== -1) {
-          history[historyIndex].status = newStatus;
-          localStorage.setItem('orderHistory', JSON.stringify(history));
-        }
-        
-        // Force page refresh to show updated status
-        window.location.reload();
-      }
-    }
+    // TODO: Backend integration in Phase 2 - removed localStorage database logic
+    // Order status updates should go through backend API
+    console.log('Order status update requested:', { orderId: order.id, newStatus });
   };
 
   const getNextStatus = (currentStatus: string) => {

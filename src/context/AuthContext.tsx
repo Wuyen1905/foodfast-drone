@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User, UserRole, AuthContextValue, RegisterPayload } from "../types/auth";
-import { USERS, CREDENTIALS } from "../data/mockData";
+import { login as apiLogin, register as apiRegister } from "../api/authApi";
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -87,16 +87,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (username: string, password: string) => {
     console.log("🔐 [AuthContext] Login attempt:", { username });
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 400));
     
-    // Find matching credentials (excluding admin)
-    const credential = Object.values(CREDENTIALS).find(cred => 
-      cred.username === username && cred.password === password && cred.username !== 'admin'
-    );
-    
-    if (credential) {
-      const user = USERS.find(u => u.username === username && u.role !== 'admin');
-      if (user) {
+    try {
+      const response = await apiLogin({ username, password });
+      
+      if (response.ok && response.user && response.token) {
+        // Use user data directly from normalized API response
+        const user: User = {
+          id: response.user.id,
+          username: response.user.username,
+          name: response.user.name,
+          email: response.user.email,
+          phone: response.user.phone,
+          role: response.user.role, // Role from backend, no fallback
+          restaurantId: response.user.restaurantId || undefined,
+          orderCount: response.user.orderCount,
+          createdAt: response.user.createdAt,
+        };
+        
         console.log("✅ [AuthContext] User found:", { 
           username: user.username, 
           role: user.role, 
@@ -104,14 +112,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           name: user.name 
         });
         
-        // Generate token and save to localStorage immediately
-        const token = `token_${user.username}_${Date.now()}`;
-        localStorage.setItem("token", token);
+        // Save token and user to localStorage
+        localStorage.setItem("token", response.token);
         localStorage.setItem("auth_user", JSON.stringify(user));
-        localStorage.setItem("role", user.role);
+        localStorage.setItem("role", user.role); // Store role from backend
         
         console.log("💾 [AuthContext] Authentication data saved to localStorage:", {
-          token: token.substring(0, 20) + "...",
+          token: response.token.substring(0, 20) + "...",
           role: user.role,
           restaurantId: user.restaurantId
         });
@@ -119,13 +126,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(user);
         setLoading(false);
         console.log("✅ [AuthContext] Login successful, user state updated");
-        return { ok: true, user, token };
+        return { ok: true, user, token: response.token };
+      } else {
+        console.log("❌ [AuthContext] Login failed:", response.message);
+        setLoading(false);
+        return { ok: false, message: response.message || "Sai tên đăng nhập hoặc mật khẩu" };
       }
+    } catch (error: any) {
+      console.log("❌ [AuthContext] Login failed:", error);
+      setLoading(false);
+      const message = error?.response?.data?.message || error?.message || "Sai tên đăng nhập hoặc mật khẩu";
+      return { ok: false, message };
     }
-    
-    console.log("❌ [AuthContext] Login failed - invalid credentials");
-    setLoading(false);
-    return { ok: false, message: "Sai tên đăng nhập hoặc mật khẩu" };
   };
 
   const register = async (payload: RegisterPayload) => {
@@ -137,8 +149,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise((r) => setTimeout(r, 800));
+      // TODO: Backend integration in Phase 2 - removed setTimeout delay
+      // Make actual backend API call here
       
       // Validate payload
       if (!payload.email || !payload.fullName || !payload.phone || !payload.password) {
@@ -147,16 +159,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { ok: false, message: "Vui lòng điền đầy đủ thông tin" };
       }
 
-      // Check if email already exists
-      const existingUser = USERS.find(u => u.email === payload.email);
+      // TODO: Backend integration in Phase 2 - removed USERS mock data
+      // Check if email already exists - should be done via backend API
+      const existingUser = null;
       if (existingUser) {
         console.log("❌ [AuthContext] Registration failed - email already exists");
         setLoading(false);
         return { ok: false, message: "Email đã được sử dụng" };
       }
 
-      // Check if phone already exists
-      const existingPhone = USERS.find(u => u.phone === payload.phone);
+      // Check if phone already exists - should be done via backend API
+      const existingPhone = null;
       if (existingPhone) {
         console.log("❌ [AuthContext] Registration failed - phone already exists");
         setLoading(false);

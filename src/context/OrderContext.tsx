@@ -55,7 +55,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
   const isFetchingRef = React.useRef(false);
   const lastErrorTimeRef = React.useRef(0);
   const consecutiveErrorsRef = React.useRef(0);
-  const intervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const websocketConnectedRef = React.useRef(false);
 
   // [Fix Infinite Loop] Load orders with error handling and retry prevention
@@ -98,8 +98,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
         return apiOrders;
       });
       
-      // Also sync to localStorage as backup
-      localStorage.setItem("orders", JSON.stringify(apiOrders));
+      // TODO: Backend integration in Phase 2 - removed localStorage backup
     } catch (error: any) {
       // [Fix 500 Error] Handle 500 errors gracefully and stop automatic retries
       const isServerError = error?.message?.includes('Server error') || error?.message?.includes('500') || 
@@ -120,16 +119,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
           intervalRef.current = null;
         }
         
-        // Fallback to localStorage if API fails
-        const saved = localStorage.getItem("orders");
-        if (saved) {
-          try {
-            const parsedOrders = JSON.parse(saved);
-            setOrders(parsedOrders);
-          } catch (e) {
-            // Silent fail for localStorage parsing
-          }
-        }
+        // TODO: Backend integration in Phase 2 - removed localStorage fallback
       } else {
         // For non-server errors (network, timeout, etc.), log but don't stop retries
         if (consecutiveErrorsRef.current === 0) {
@@ -284,16 +274,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [loadOrders]);
 
-  // [Fix Infinite Loop] Sync orders to localStorage whenever they change (with debounce to prevent loops)
-  useEffect(() => {
-    // [Fix Infinite Loop] Only sync if orders actually changed (not just reference change)
-    if (orders.length > 0) {
-      const timeoutId = setTimeout(() => {
-        localStorage.setItem("orders", JSON.stringify(orders));
-      }, 100); // Debounce localStorage writes
-      return () => clearTimeout(timeoutId);
-    }
-  }, [orders]);
+  // TODO: Backend integration in Phase 2 - removed localStorage sync
 
   // [Data Sync] Refresh orders from API (manual refresh, not automatic)
   const refreshOrders = useCallback(async () => {
@@ -320,7 +301,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
       lastErrorTimeRef.current = 0;
       
       setOrders(apiOrders);
-      localStorage.setItem("orders", JSON.stringify(apiOrders));
+      // TODO: Backend integration in Phase 2 - removed localStorage sync
       
       // [Fix Infinite Loop] Restart interval if it was stopped due to errors
       if (!intervalRef.current && consecutiveErrorsRef.current === 0) {
@@ -372,14 +353,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
         return newOrders;
       });
       
-      // [Fix 500 Error] Sync to localStorage after successful creation
-      // Merge with existing orders in localStorage
-      const saved = localStorage.getItem("orders");
-      const existingOrders = saved ? JSON.parse(saved) : [];
-      const allOrders = Array.isArray(existingOrders) 
-        ? [...existingOrders.filter((o: any) => o.id !== createdOrder.id), createdOrder]
-        : [createdOrder];
-      localStorage.setItem("orders", JSON.stringify(allOrders));
+      // TODO: Backend integration in Phase 2 - removed localStorage sync
     } catch (error: any) {
       // [Fix 500 Error] Handle errors gracefully - log once and fallback to local
       const errorMessage = error?.message || 'Failed to add order';
@@ -400,8 +374,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
       
       setOrders((prev) => {
         const newOrders = [...prev, orderWithId];
-        // [Fix 500 Error] Sync to localStorage for offline access
-        localStorage.setItem("orders", JSON.stringify(newOrders));
+        // TODO: Backend integration in Phase 2 - removed localStorage sync
         return newOrders;
       });
       
@@ -442,13 +415,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
         return updatedOrders;
       });
       
-      // [Fix 500 Error] Sync to localStorage after successful creation
-      if (createdOrders.length > 0) {
-        const saved = localStorage.getItem("orders");
-        const existingOrders = saved ? JSON.parse(saved) : [];
-        const allOrders = [...existingOrders, ...createdOrders];
-        localStorage.setItem("orders", JSON.stringify(allOrders));
-      }
+      // TODO: Backend integration in Phase 2 - removed localStorage sync
     } catch (error: any) {
       // [Fix 500 Error] Log error only once
       const errorMessage = error?.message || 'Failed to add orders';

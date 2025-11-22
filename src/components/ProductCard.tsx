@@ -284,7 +284,7 @@ const ProductCard: React.FC<Props> = ({ product, isAdmin, onEdit, onDelete, onAd
             {product.tag}
           </Tag>
         )}
-        <Thumb src={img} alt={product.name} onError={(e) => { (e.currentTarget.src = 'https://via.placeholder.com/400x300?text=No+Image'); }} />
+        <Thumb src={img} alt={product.name} onError={(e) => { (e.currentTarget.src = 'https://placehold.co/400x300?text=No+Image&font=roboto'); }} />
       </ThumbWrap>
       <Title to={`/details/${product.id}`}>{product.name}</Title>
       <PriceRow>

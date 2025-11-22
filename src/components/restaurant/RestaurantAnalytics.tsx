@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { formatVND } from '../../utils/currency';
@@ -283,77 +283,103 @@ const ProductRevenue = styled.div`
 `;
 
 const RestaurantAnalytics: React.FC<AnalyticsProps> = ({ theme, restaurant = "SweetDreams" }) => {
-  // Mock data
-  const kpiData = [
-    {
-      icon: '📦',
-      label: 'Tổng đơn hàng hôm nay',
-      value: '156',
-      change: '+12%',
-      positive: true,
-      gradient: 'linear-gradient(90deg, #667eea, #764ba2)',
-      bg: '#667eea20'
-    },
-    {
-      icon: '📦',
-      label: 'Tổng đơn hàng tuần này',
-      value: '892',
-      change: '+8%',
-      positive: true,
-      gradient: 'linear-gradient(90deg, #f093fb, #f5576c)',
-      bg: '#f093fb20'
-    },
-    {
-      icon: '💰',
-      label: 'Doanh thu hôm nay',
-      value: formatVND(12450000),
-      change: '+15%',
-      positive: true,
-      gradient: 'linear-gradient(90deg, #4facfe, #00f2fe)',
-      bg: '#4facfe20'
-    },
-    {
-      icon: '⏱️',
-      label: 'Thời gian giao TB',
-      value: '18 phút',
-      change: '-5 phút',
-      positive: true,
-      gradient: 'linear-gradient(90deg, #43e97b, #38f9d7)',
-      bg: '#43e97b20'
+  // TODO: Backend integration in Phase 2 - removed all hardcoded mock data
+  const [kpiData, setKpiData] = useState<any[]>([]);
+  const [revenueData, setRevenueData] = useState<Array<{ label: string; value: number }>>([]);
+  const [orderStatusData, setOrderStatusData] = useState<Array<{ label: string; value: number; color: string }>>([]);
+  const [topProducts, setTopProducts] = useState<Array<{ name: string; sales: number; revenue: number }>>([]);
+
+  // Load analytics from backend API
+  const loadAnalytics = async () => {
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+      
+      // Normalize restaurant ID
+      let restaurantIdParam = restaurant;
+      if (restaurant.toLowerCase() === 'sweetdreams') {
+        restaurantIdParam = 'rest_2';
+      } else if (restaurant.toLowerCase() === 'aloha') {
+        restaurantIdParam = 'restaurant_2';
+      }
+      
+      // Fetch analytics and overview data
+      const [analyticsResponse, overviewResponse, ordersResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/analytics/restaurant/${restaurantIdParam}?period=day`).catch(() => null),
+        fetch(`${API_BASE_URL}/analytics/restaurant/${restaurantIdParam}/overview`).catch(() => null),
+        fetch(`${API_BASE_URL}/orders?restaurant=${restaurantIdParam}`).catch(() => null)
+      ]);
+      
+      // Process analytics data
+      if (analyticsResponse?.ok) {
+        const analytics = await analyticsResponse.json();
+        
+        // Set KPI data
+        setKpiData([
+          { label: 'Doanh thu', value: analytics.revenue || 0 },
+          { label: 'Đơn hàng', value: analytics.orders || 0 },
+          { label: 'Giá trị TB', value: analytics.avgOrderValue || 0 },
+          { label: 'Thời gian giao', value: analytics.deliveryTime || 18 }
+        ]);
+      }
+      
+      // Process overview data for revenue chart and top products
+      if (overviewResponse?.ok) {
+        const overview = await overviewResponse.json();
+        
+        // Set revenue data (simplified - could be enhanced with historical data)
+        setRevenueData([
+          { label: 'Hôm nay', value: overview.revenue || 0 }
+        ]);
+        
+        // Set top products
+        setTopProducts(overview.topItems || []);
+      }
+      
+      // Process orders for order status data
+      if (ordersResponse?.ok) {
+        const orders = await ordersResponse.json();
+        
+        // Count orders by status
+        const statusCounts: Record<string, number> = {};
+        orders.forEach((o: any) => {
+          const status = o.status || 'Pending';
+          statusCounts[status] = (statusCounts[status] || 0) + 1;
+        });
+        
+        // Map to order status data format
+        const statusColors: Record<string, string> = {
+          'Pending': '#ffc107',
+          'Confirmed': '#17a2b8',
+          'Preparing': '#007bff',
+          'Delivering': '#28a745',
+          'Delivered': '#6c757d',
+          'Cancelled': '#dc3545'
+        };
+        
+        setOrderStatusData(
+          Object.entries(statusCounts).map(([label, value]) => ({
+            label,
+            value,
+            color: statusColors[label] || '#6c757d'
+          }))
+        );
+      }
+    } catch (error) {
+      console.error('[RestaurantAnalytics] Error loading analytics:', error);
     }
-  ];
+  };
 
-  const revenueData = [
-    { label: 'T2', value: 8500000 },
-    { label: 'T3', value: 9200000 },
-    { label: 'T4', value: 11000000 },
-    { label: 'T5', value: 10500000 },
-    { label: 'T6', value: 13800000 },
-    { label: 'T7', value: 15200000 },
-    { label: 'CN', value: 12400000 }
-  ];
+  // Load analytics data on mount
+  useEffect(() => {
+    loadAnalytics();
+  }, [restaurant]);
 
-  const maxRevenue = Math.max(...revenueData.map(d => d.value));
-
-  const orderStatusData = [
-    { label: 'Đang chuẩn bị', value: 45, color: '#ffc107' },
-    { label: 'Đang giao', value: 38, color: '#007bff' },
-    { label: 'Hoàn tất', value: 142, color: '#28a745' },
-    { label: 'Đã hủy', value: 5, color: '#dc3545' }
-  ];
-
+  // Calculate max revenue safely (handle empty array)
+  const maxRevenue = revenueData.length > 0 ? Math.max(...revenueData.map(d => d.value)) : 1;
+  
+  // Calculate total orders safely (handle empty array)
   const totalOrders = orderStatusData.reduce((sum, item) => sum + item.value, 0);
   let currentAngle = 0;
-
-  const topProducts = restaurant === "SweetDreams" ? [
-    { name: 'Bánh Tiramisu', sales: 89, revenue: 4895000 },
-    { name: 'Bánh Donut', sales: 67, revenue: 1675000 },
-    { name: 'Bánh Phô Mai Dâu', sales: 54, revenue: 2430000 }
-  ] : [
-    { name: 'Pizza Hawaii', sales: 95, revenue: 8455000 },
-    { name: 'Hamburger', sales: 78, revenue: 6162000 },
-    { name: 'Cơm Chiên Hawaii', sales: 62, revenue: 4278000 }
-  ];
 
   const rankColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
 
@@ -365,7 +391,12 @@ const RestaurantAnalytics: React.FC<AnalyticsProps> = ({ theme, restaurant = "Sw
 
       {/* KPI Cards */}
       <KPIGrid>
-        {kpiData.map((kpi, index) => (
+        {kpiData.length === 0 ? (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#666' }}>
+            Không có dữ liệu KPI
+          </div>
+        ) : (
+          kpiData.map((kpi, index) => (
           <KPICard
             key={index}
             $gradient={kpi.gradient}
@@ -382,7 +413,8 @@ const RestaurantAnalytics: React.FC<AnalyticsProps> = ({ theme, restaurant = "Sw
               <KPIIcon $bg={kpi.bg}>{kpi.icon}</KPIIcon>
             </KPIHeader>
           </KPICard>
-        ))}
+          ))
+        )}
       </KPIGrid>
 
       {/* Charts */}
@@ -390,8 +422,13 @@ const RestaurantAnalytics: React.FC<AnalyticsProps> = ({ theme, restaurant = "Sw
         {/* Revenue Trend Chart */}
         <ChartCard>
           <ChartTitle>📈 Xu hướng doanh thu tuần</ChartTitle>
-          <BarChart>
-            {revenueData.map((data, index) => (
+          {revenueData.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+              Không có dữ liệu doanh thu
+            </div>
+          ) : (
+            <BarChart>
+              {revenueData.map((data, index) => (
               <BarColumn key={index}>
                 <BarValue>{formatVND(data.value)}</BarValue>
                 <Bar
@@ -403,24 +440,30 @@ const RestaurantAnalytics: React.FC<AnalyticsProps> = ({ theme, restaurant = "Sw
                 />
                 <BarLabel>{data.label}</BarLabel>
               </BarColumn>
-            ))}
-          </BarChart>
+              ))}
+            </BarChart>
+          )}
         </ChartCard>
 
         {/* Orders by Status Pie Chart */}
         <ChartCard>
           <ChartTitle>🎯 Đơn hàng theo trạng thái</ChartTitle>
-          <PieChart>
-            <PieCircle viewBox="0 0 200 200">
-              <circle
-                cx="100"
-                cy="100"
-                r="80"
-                fill="none"
-                stroke="#e1e5e9"
-                strokeWidth="40"
-              />
-              {orderStatusData.map((item, index) => {
+          {orderStatusData.length === 0 || totalOrders === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+              Không có dữ liệu đơn hàng
+            </div>
+          ) : (
+            <PieChart>
+              <PieCircle viewBox="0 0 200 200">
+                <circle
+                  cx="100"
+                  cy="100"
+                  r="80"
+                  fill="none"
+                  stroke="#e1e5e9"
+                  strokeWidth="40"
+                />
+                {orderStatusData.map((item, index) => {
                 const percentage = (item.value / totalOrders) * 100;
                 const angle = (percentage / 100) * 360;
                 const startAngle = currentAngle;
@@ -479,14 +522,20 @@ const RestaurantAnalytics: React.FC<AnalyticsProps> = ({ theme, restaurant = "Sw
               ))}
             </PieLegend>
           </PieChart>
+          )}
         </ChartCard>
       </ChartsGrid>
 
       {/* Top Products */}
       <TopProductsCard>
         <ChartTitle>🏆 Top 3 món ăn phổ biến</ChartTitle>
-        <ProductList>
-          {topProducts.map((product, index) => (
+        {topProducts.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+            Không có dữ liệu sản phẩm
+          </div>
+        ) : (
+          <ProductList>
+            {topProducts.map((product, index) => (
             <ProductItem key={index}>
               <ProductRank $color={rankColors[index]}>
                 {index + 1}
@@ -497,8 +546,9 @@ const RestaurantAnalytics: React.FC<AnalyticsProps> = ({ theme, restaurant = "Sw
               </ProductInfo>
               <ProductRevenue>{formatVND(product.revenue)}</ProductRevenue>
             </ProductItem>
-          ))}
-        </ProductList>
+            ))}
+          </ProductList>
+        )}
       </TopProductsCard>
     </AnalyticsContainer>
   );

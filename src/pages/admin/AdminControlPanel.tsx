@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useOrders } from '@/context/OrderContext';
-import { USERS, RESTAURANTS } from '@/data/mockData';
+// TODO: Backend integration in Phase 2 - removed mockData import
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -236,8 +236,9 @@ const AdminControlPanel: React.FC = () => {
   }
 
   // Calculate statistics
-  const totalUsers = USERS.length;
-  const totalRestaurants = RESTAURANTS.length;
+  // TODO: Backend integration in Phase 2
+  const totalUsers = 0;
+  const totalRestaurants = 0;
   const totalOrders = orders.length;
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
 
@@ -310,7 +311,8 @@ const AdminControlPanel: React.FC = () => {
             </tr>
           </TableHeader>
           <TableBody>
-            {USERS.map((user) => (
+            {/* TODO: Backend integration in Phase 2 - load users from API */}
+            {[].map((user: any) => (
               <TableRow key={user.id}>
                 <TableCell>{user.id}</TableCell>
                 <TableCell>{user.name}</TableCell>
@@ -364,12 +366,13 @@ const AdminControlPanel: React.FC = () => {
             </tr>
           </TableHeader>
           <TableBody>
-            {RESTAURANTS.map((restaurant) => (
+            {/* TODO: Backend integration in Phase 2 - load restaurants from API */}
+            {[].map((restaurant: any) => (
               <TableRow key={restaurant.id}>
                 <TableCell>{restaurant.id}</TableCell>
                 <TableCell>{restaurant.name}</TableCell>
                 <TableCell>{restaurant.description}</TableCell>
-                <TableCell>{USERS.find(u => u.id === restaurant.ownerId)?.name}</TableCell>
+                <TableCell>{/* TODO: Backend integration in Phase 2 */}</TableCell>
                 <TableCell>
                   <StatusBadge status={restaurant.isActive ? 'active' : 'suspended'}>
                     {restaurant.isActive ? 'Hoạt động' : 'Tạm khóa'}

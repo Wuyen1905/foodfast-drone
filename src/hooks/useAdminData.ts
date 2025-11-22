@@ -10,7 +10,7 @@ import { getDroneList } from '@/services/droneManager';
 import { fetchRealtimeStats } from '@/services/adminRealtime';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Cache storage
 const cache: Record<string, { data: any; timestamp: number; ttl: number }> = {};

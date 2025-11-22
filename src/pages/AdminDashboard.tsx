@@ -268,8 +268,9 @@ const RestaurantDashboard: React.FC = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate refresh delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // TODO: Backend integration in Phase 2 - removed setTimeout delay
+    // Refresh data from backend API
+    await refreshData();
     setRefreshing(false);
     toast.success('🔄 Đã làm mới dữ liệu');
   };

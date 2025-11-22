@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context";
-import { USERS } from "@/data/mockData";
+// TODO: Backend integration in Phase 2 - removed mockData import
 import styled from "styled-components";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
@@ -149,108 +149,88 @@ const Login = () => {
 
   // Get redirect path based on user role and restaurant (memoized to prevent infinite loops)
   const getRedirectPath = useCallback((loggedInUser: any): string => {
-    console.log("🧭 [Login] Calculating redirect path for user:", { 
-      username: loggedInUser?.username, 
-      role: loggedInUser?.role, 
-      restaurantId: loggedInUser?.restaurantId 
-    });
-    
     if (!loggedInUser) {
-      console.log("⚠️ [Login] No user provided, returning from:", from);
-      return from;
+      return from === '/login' ? '/' : from;
     }
 
-    // Restaurant-specific redirects
-    if (loggedInUser.role === 'restaurant') {
-      // SweetDreams Bakery
-      if (loggedInUser.restaurantId === 'rest_2' || loggedInUser.username === 'sweetdreams') {
-        console.log("🍰 [Login] Redirecting to SweetDreams dashboard");
-        return '/restaurant/sweetdreams';
+    if (loggedInUser.role === "admin") {
+      return "/admin";
+    } else if (loggedInUser.role === "restaurant") {
+      // Map restaurantId from H2 to the existing dashboard routes
+      if (loggedInUser.restaurantId === "rest_2") {
+        // SweetDreams Bakery dashboard route
+        return "/restaurant/sweetdreams";
+      } else if (loggedInUser.restaurantId === "restaurant_2") {
+        // Aloha Kitchen dashboard route
+        return "/aloha-dashboard";
+      } else if (loggedInUser.restaurantId) {
+        // Generic fallback if you have a dynamic route
+        return `/restaurant/${loggedInUser.restaurantId}`;
+      } else {
+        // Fallback restaurant home
+        return "/restaurant";
       }
-      // Aloha Kitchen
-      if (loggedInUser.restaurantId === 'restaurant_2' || loggedInUser.username === 'aloha_restaurant') {
-        console.log("🍜 [Login] Redirecting to Aloha dashboard");
-        return '/aloha-dashboard';
-      }
-      // Generic restaurant dashboard
-      console.log("🏪 [Login] Redirecting to generic restaurant dashboard");
-      return '/restaurant';
     }
-
-    // Note: Admin login is handled separately at /admin/login
-
     // Customer - redirect to previous page or home
-    const customerPath = from === '/login' ? '/' : from;
-    console.log("👤 [Login] Redirecting customer to:", customerPath);
-    return customerPath;
+    return from === '/login' ? '/' : from;
   }, [from]);
 
   // Fallback useEffect: Check if user is already logged in and redirect them
   useEffect(() => {
-    console.log("🔄 [Login] Checking if user is already logged in:", { 
-      hasUser: !!user,
-      username: user?.username,
-      role: user?.role 
-    });
-    
     if (user) {
       const redirectPath = getRedirectPath(user);
-      console.log("✅ [Login] User already logged in, redirecting to:", redirectPath);
       navigate(redirectPath, { replace: true });
     }
   }, [user, navigate, getRedirectPath]);
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("📝 [Login] Form submitted with username:", username);
-    
-    setBusy(true);
     setError(null);
+    setBusy(true);
     
     try {
-      console.log("📞 [Login] Calling login() function...");
-      const res = await login(username.trim(), password);
-      console.log("📨 [Login] Login response received:", res);
+      const result = await login(username.trim(), password);
       
-      if (res.ok) {
-        console.log("✅ [Login] Login succeeded, showing success toast");
-        toast.success("🎉 Đăng nhập thành công!");
-        
-        // Find the logged-in user directly from USERS data
-        const loggedInUser = USERS.find(u => u.username === username.trim() && u.role !== 'admin');
-        console.log("👤 [Login] Found logged-in user:", loggedInUser);
-        console.log("🔍 [Login] User details:", {
-          username: loggedInUser?.username,
-          role: loggedInUser?.role,
-          restaurantId: loggedInUser?.restaurantId,
-          name: loggedInUser?.name
-        });
-        
-        if (loggedInUser) {
-          // Calculate redirect path using the helper function
-          const redirectPath = getRedirectPath(loggedInUser);
-          console.log("🚀 [Login] Redirecting to:", redirectPath);
-          
-          // Immediate redirect after successful login
-          navigate(redirectPath, { replace: true });
-          console.log("✅ [Login] Navigation completed");
-        } else {
-          console.warn("⚠️ [Login] Could not find user data for:", username);
-          // Fallback to home page
-          navigate('/', { replace: true });
-        }
-      } else {
-        console.log("❌ [Login] Login failed:", res.message);
-        setError(res.message || "Đăng nhập thất bại");
-        toast.error(res.message || "Đăng nhập thất bại");
+      if (!result.ok || !result.user) {
+        setError(result.message || "Sai tên đăng nhập hoặc mật khẩu");
+        toast.error(result.message || "Sai tên đăng nhập hoặc mật khẩu");
+        setBusy(false);
+        return;
       }
       
-      setBusy(false);
+      const user = result.user;
+      toast.success("🎉 Đăng nhập thành công!");
+      
+      // Determine redirect path based on role and restaurantId
+      let target = "/"; // default: customer home
+      
+      if (user.role === "admin") {
+        target = "/admin";
+      } else if (user.role === "restaurant") {
+        // Map restaurantId from H2 to the existing dashboard routes
+        if (user.restaurantId === "rest_2") {
+          // SweetDreams Bakery dashboard route
+          target = "/restaurant/sweetdreams";
+        } else if (user.restaurantId === "restaurant_2") {
+          // Aloha Kitchen dashboard route
+          target = "/aloha-dashboard";
+        } else if (user.restaurantId) {
+          // Generic fallback if you have a dynamic route
+          target = `/restaurant/${user.restaurantId}`;
+        } else {
+          // Fallback restaurant home
+          target = "/restaurant";
+        }
+      }
+      // else: customer stays on "/"
+      
+      navigate(target, { replace: true });
     } catch (error) {
       console.error("💥 [Login] Exception during login:", error);
+      setError("Tên đăng nhập hoặc mật khẩu không đúng");
+      toast.error("Tên đăng nhập hoặc mật khẩu không đúng");
+    } finally {
       setBusy(false);
-      setError("Có lỗi xảy ra, vui lòng thử lại");
-      toast.error("Có lỗi xảy ra, vui lòng thử lại");
     }
   };
 
@@ -263,7 +243,7 @@ const Login = () => {
       >
         <LoginTitle>Đăng nhập</LoginTitle>
         
-        <form onSubmit={onSubmit}>
+        <form onSubmit={handleSubmit}>
           <FormGroup>
             <InputContainer>
               <InputIcon>👤</InputIcon>

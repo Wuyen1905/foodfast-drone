@@ -102,8 +102,7 @@ const VNPayReturn: React.FC = () => {
   useEffect(() => {
     const processPayment = async () => {
       try {
-        // Simulate processing delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // TODO: Backend integration in Phase 2 - removed setTimeout delay
         
         // Validate VNPay callback with proper hash verification
         const validation = await validateVNPayCallback(searchParams);

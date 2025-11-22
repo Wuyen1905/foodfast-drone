@@ -192,16 +192,20 @@ const Orders: React.FC = () => {
     }
     setLoading(true);
     
-    // Simulate loading delay
-    setTimeout(() => {
+    // TODO: Backend integration in Phase 2 - removed setTimeout delay
+    try {
       const result = getOrdersByPhone(phone);
       setFilteredOrders(result);
-      setLoading(false);
       
       if (result.length === 0) {
         toast("Không tìm thấy đơn hàng nào cho số điện thoại này", { icon: "ℹ️" });
       }
-    }, 1000);
+    } catch (error) {
+      console.error('Failed to load orders:', error);
+      setFilteredOrders([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleStatusUpdate = (orderId: string, newStatus: string) => {

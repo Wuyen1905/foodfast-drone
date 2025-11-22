@@ -1,31 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import os from "os";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Get local network IP for HMR
-// This automatically detects the LAN IP address for WebSocket connections
-function getLocalNetworkIP(): string {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    const iface = interfaces[name];
-    if (iface) {
-      for (const alias of iface) {
-        // Check for IPv4 (handles both string 'IPv4' and number 4)
-        const isIPv4 = alias.family === 'IPv4' || alias.family === 4;
-        if (isIPv4 && !alias.internal) {
-          return alias.address;
-        }
-      }
-    }
-  }
-  return 'localhost';
-}
-
-const localIP = getLocalNetworkIP();
 
 export default defineConfig({
   plugins: [react()],
@@ -38,9 +16,10 @@ export default defineConfig({
     global: 'window', // Fix SockJS "global is not defined" issue
   },
   server: {
-    host: "0.0.0.0", // Listen on all network interfaces for LAN access
+    host: true,
     port: 5173,
-    strictPort: false, // Allow port fallback if 5173 is in use
+    strictPort: true,
+    allowedHosts: true,
     cors: true,
     // [Backend Connection] Proxy API requests to Spring Boot backend
     proxy: {
@@ -134,12 +113,9 @@ export default defineConfig({
       },
     },
     hmr: {
-      // Use local network IP for HMR to enable WebSocket connections over LAN
-      // This fixes WebSocket timeout issues when accessing from other devices
-      // Port is automatically set to match the server port (5173 or fallback)
-      host: "0.0.0.0",
+      host: "localhost",
       protocol: "ws",
-      clientPort: 5173, // Explicitly set client port to match server port
+      port: 5173,
     },
   },
   preview: {

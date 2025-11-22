@@ -12,6 +12,7 @@ import { formatVND } from '@/utils/currency';
 import dayjs from 'dayjs';
 import { getRestaurantById } from '@/services/adminService';
 import { fetchOrderById, fetchOrders } from '@/services/orderApiService';
+import { realtimeSocket } from '@/services/orderSyncService';
 import type { Order } from '@/context/OrderContext';
 import toast from 'react-hot-toast';
 
@@ -411,6 +412,18 @@ const OrderConfirmation: React.FC = () => {
 
     loadOrders();
   }, [orderId, paymentSessionId, orders, getOrdersByPaymentSession, confirmationCodeFromUrl, confirmationCode]);
+
+  useEffect(() => {
+    if (!orderId) return;
+
+    const unsub = realtimeSocket.onOrderUpdate((order) => {
+      if (order.id === orderId) {
+        setOrder(order);
+      }
+    });
+
+    return unsub;
+  }, [orderId]);
 
   const getStatusText = (status: string): string => {
     const statusMap: Record<string, string> = {

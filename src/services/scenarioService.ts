@@ -7,7 +7,7 @@ import axios from 'axios';
 import { updateDroneStatus } from './droneManager';
 import { notifyWarning, notifySystemEvent } from '@/state/notificationStore';
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export type ScenarioType = 
   | 'droneFailure'

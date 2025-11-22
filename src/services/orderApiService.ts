@@ -533,6 +533,10 @@ export const updateOrder = async (id: string, updates: Partial<any>): Promise<an
 
 // [Data Sync] Patch order in API (partial update)
 export const patchOrder = async (id: string, updates: Partial<any>): Promise<any> => {
+  const safeId = id.trim();
+  if (!safeId) {
+    throw new Error("[OrderApiService] Cannot patch order without ID");
+  }
   try {
     const apiUpdates: any = {};
     
@@ -549,11 +553,24 @@ export const patchOrder = async (id: string, updates: Partial<any>): Promise<any
     if (updates.confirmedAt) apiUpdates.confirmedAt = updates.confirmedAt;
     if (updates.cancelledAt) apiUpdates.cancelledAt = updates.cancelledAt;
     
+    if (typeof updates.droneId === "string") {
+      apiUpdates.droneId = updates.droneId;
+    }
+
     apiUpdates.updatedAt = Date.now();
     
-    // Convert order ID to lowercase for case-sensitive Spring Boot routes
-    const orderIdLowerCase = id.toLowerCase();
-    const response = await apiClient.patch(`/orders/${orderIdLowerCase}`, apiUpdates);
+    // IMPORTANT:
+    // Use the order ID exactly as provided by the backend (do NOT change case),
+    // so that it matches the ID stored in the H2 database.
+    console.debug("[OrderApiService] Patching order:", {
+      id: safeId,
+      updates: apiUpdates,
+    });
+
+    const response = await apiClient.patch(
+      `/orders/${encodeURIComponent(safeId)}`,
+      apiUpdates
+    );
     return mapApiOrderToOrder(response.data);
   } catch (error) {
     console.error('[OrderApiService] Error patching order:', error);

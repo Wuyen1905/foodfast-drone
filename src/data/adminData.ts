@@ -1,118 +1,145 @@
 /**
- * Admin Mock Data
- * This file contains mock data for the admin dashboard
+ * Admin Data Helpers
+ * Backend API integration for admin dashboard data loading
  */
 
 import { AdminDrone, AdminRestaurant, AdminCustomer, SystemLog } from '../types/admin';
-import { RESTAURANTS, USERS } from './mockData';
+import axios from 'axios';
 
-// Generate mock drones for each restaurant
-export const generateMockDrones = (): AdminDrone[] => {
-  const drones: AdminDrone[] = [];
-  const statuses: AdminDrone['status'][] = ['Idle', 'Delivering', 'Charging', 'Maintenance'];
-  
-  RESTAURANTS.forEach((restaurant, restaurantIndex) => {
-    const droneCount = restaurantIndex === 0 ? 5 : restaurantIndex === 1 ? 4 : 6;
-    
-    for (let i = 0; i < droneCount; i++) {
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
-      drones.push({
-        id: `DRONE-${restaurant.id}-${String(i + 1).padStart(3, '0')}`,
-        restaurantId: restaurant.id,
-        restaurantName: restaurant.name,
-        status,
-        battery: status === 'Charging' ? 30 + Math.random() * 40 : 60 + Math.random() * 40,
-        currentOrderId: status === 'Delivering' ? `ORD-${Math.floor(10000 + Math.random() * 90000)}` : undefined,
-        lastMaintenance: Date.now() - Math.floor(Math.random() * 30) * 86400000, // Random date within last 30 days
-        flaggedForIssue: Math.random() > 0.9,
-        issueDescription: Math.random() > 0.9 ? 'Battery degradation detected' : undefined
-      });
-    }
-  });
-  
-  return drones;
-};
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-// Generate mock restaurant data with admin-specific fields
-export const generateMockRestaurants = (): AdminRestaurant[] => {
-  return RESTAURANTS.map((restaurant, index) => ({
-    id: restaurant.id,
-    name: restaurant.name,
-    category: restaurant.category || 'General',
-    status: restaurant.isActive ? 'Active' : index % 5 === 0 ? 'Pending' : 'Inactive',
-    ownerId: restaurant.ownerId,
-    ownerName: USERS.find(u => u.id === restaurant.ownerId)?.name || 'Unknown',
-    totalOrders: Math.floor(Math.random() * 1000) + 100,
-    totalRevenue: Math.floor(Math.random() * 50000000) + 10000000,
-    rating: restaurant.rating || 4.5,
-    droneCount: index === 0 ? 5 : index === 1 ? 4 : 6,
-    location: restaurant.location || 'Unknown',
-    createdAt: restaurant.createdAt
-  }));
-};
-
-// Generate mock customer data
-export const generateMockCustomers = (): AdminCustomer[] => {
-  const customers = USERS.filter(u => u.role === 'customer');
-  
-  return customers.map((user, index) => ({
-    id: user.id,
-    name: user.name,
-    phone: user.phone || `098765${String(index).padStart(4, '0')}`,
-    email: user.email || `${user.username}@example.com`,
-    totalOrders: user.orderCount || Math.floor(Math.random() * 50) + 1,
-    totalSpend: Math.floor(Math.random() * 10000000) + 500000,
-    accountStatus: Math.random() > 0.95 ? 'Suspended' : 'Active',
-    createdAt: user.createdAt || Date.now() - Math.floor(Math.random() * 180) * 86400000,
-    lastOrderDate: Date.now() - Math.floor(Math.random() * 30) * 86400000
-  }));
-};
-
-// Initial system logs
-export const initialSystemLogs: SystemLog[] = [
-  {
-    id: 'log_001',
-    timestamp: Date.now() - 3600000, // 1 hour ago
-    adminId: 'admin_1',
-    adminName: 'System Administrator',
-    action: 'restaurant_approved',
-    targetType: 'restaurant',
-    targetId: 'restaurant_2',
-    targetName: 'Aloha Kitchen',
-    details: 'Approved restaurant application after verification',
-    severity: 'info'
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
   },
-  {
-    id: 'log_002',
-    timestamp: Date.now() - 7200000, // 2 hours ago
-    adminId: 'admin_1',
-    adminName: 'System Administrator',
-    action: 'drone_flagged',
-    targetType: 'drone',
-    targetId: 'DRONE-rest_1-001',
-    targetName: 'DRONE-rest_1-001',
-    details: 'Flagged for battery degradation issue',
-    severity: 'warning'
-  },
-  {
-    id: 'log_003',
-    timestamp: Date.now() - 86400000, // 1 day ago
-    adminId: 'admin_1',
-    adminName: 'System Administrator',
-    action: 'customer_suspended',
-    targetType: 'customer',
-    targetId: 'u2',
-    targetName: 'Customer User',
-    details: 'Temporarily suspended due to payment disputes',
-    severity: 'warning'
-  }
-];
-
-// Export initial data as a function to get fresh copies
-export const getInitialAdminData = () => ({
-  drones: generateMockDrones(),
-  restaurants: generateMockRestaurants(),
-  customers: generateMockCustomers(),
-  logs: [...initialSystemLogs]
 });
 
+// Get drones for admin dashboard
+export const getAdminDrones = async (): Promise<AdminDrone[]> => {
+  try {
+    const response = await apiClient.get('/drones');
+    const drones = Array.isArray(response.data) ? response.data : [];
+    
+    // Transform to AdminDrone format
+    return drones.map((d: any) => ({
+      id: d.id,
+      restaurantId: d.restaurantId || d.restaurant || '',
+      restaurantName: d.restaurantName || 'Unknown',
+      status: (d.status || 'Idle') as 'Idle' | 'Delivering' | 'Charging' | 'Maintenance',
+      battery: d.battery || d.batteryLevel || 100,
+      currentOrderId: d.currentOrderId,
+      lastMaintenance: d.lastMaintenance || Date.now(),
+      flaggedForIssue: d.flaggedForIssue || false,
+      issueDescription: d.issueDescription
+    }));
+  } catch (error) {
+    console.error('[adminData] Error fetching drones:', error);
+    return [];
+  }
+};
+
+// Get restaurants for admin dashboard
+export const getAdminRestaurants = async (): Promise<AdminRestaurant[]> => {
+  try {
+    const [restaurantsResponse, ordersResponse, dronesResponse, usersResponse] = await Promise.all([
+      apiClient.get('/restaurants'),
+      apiClient.get('/orders'),
+      apiClient.get('/drones'),
+      apiClient.get('/auth/users')
+    ]);
+    
+    const restaurants = Array.isArray(restaurantsResponse.data) ? restaurantsResponse.data : [];
+    const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : [];
+    const drones = Array.isArray(dronesResponse.data) ? dronesResponse.data : [];
+    const users = Array.isArray(usersResponse.data) ? usersResponse.data : [];
+    
+    // Transform to AdminRestaurant format
+    return restaurants.map((r: any) => {
+      const restaurantOrders = orders.filter((o: any) => 
+        (o.restaurantId === r.id || o.restaurant === r.id)
+      );
+      const restaurantDrones = drones.filter((d: any) => 
+        (d.restaurantId === r.id || d.restaurant === r.id)
+      );
+      const owner = users.find((u: any) => u.id === r.ownerId);
+      
+      return {
+        id: r.id,
+        name: r.name,
+        category: r.category || 'General',
+        status: r.isActive ? 'Active' as const : 'Pending' as const,
+        ownerId: r.ownerId,
+        ownerName: owner?.name || 'Unknown',
+        totalOrders: restaurantOrders.length,
+        totalRevenue: restaurantOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0),
+        rating: r.rating || 0,
+        droneCount: restaurantDrones.length,
+        location: r.location || 'Unknown',
+        createdAt: r.createdAt || Date.now()
+      };
+    });
+  } catch (error) {
+    console.error('[adminData] Error fetching restaurants:', error);
+    return [];
+  }
+};
+
+// Get customers for admin dashboard
+export const getAdminCustomers = async (): Promise<AdminCustomer[]> => {
+  try {
+    const [usersResponse, ordersResponse] = await Promise.all([
+      apiClient.get('/auth/users'),
+      apiClient.get('/orders')
+    ]);
+    
+    const users = Array.isArray(usersResponse.data) ? usersResponse.data : [];
+    const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : [];
+    
+    // Filter customers and transform
+    return users
+      .filter((u: any) => u.role === 'customer')
+      .map((u: any) => {
+        const customerOrders = orders.filter((o: any) => o.userId === u.id);
+        const lastOrder = customerOrders.length > 0 
+          ? customerOrders.sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0))[0]
+          : null;
+        
+        return {
+          id: u.id,
+          name: u.name,
+          phone: u.phone || '',
+          email: u.email || '',
+          totalOrders: customerOrders.length,
+          totalSpend: customerOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0),
+          accountStatus: 'Active' as const,
+          createdAt: u.createdAt || Date.now(),
+          lastOrderDate: lastOrder ? (lastOrder.createdAt || lastOrder.updatedAt) : undefined
+        };
+      });
+  } catch (error) {
+    console.error('[adminData] Error fetching customers:', error);
+    return [];
+  }
+};
+
+// Get system logs
+export const getSystemLogs = async (): Promise<SystemLog[]> => {
+  try {
+    // System logs endpoint doesn't exist yet, return empty array
+    // TODO: Implement system logs endpoint in backend
+    return [];
+  } catch (error) {
+    console.error('[adminData] Error fetching system logs:', error);
+    return [];
+  }
+};
+
+// Export initial data as a function to get fresh copies
+export const getInitialAdminData = async () => ({
+  drones: await getAdminDrones(),
+  restaurants: await getAdminRestaurants(),
+  customers: await getAdminCustomers(),
+  logs: await getSystemLogs()
+});

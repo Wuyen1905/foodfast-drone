@@ -1,13 +1,7 @@
 // Restaurant Order Service
-// Simulates backend API calls for restaurant order management
+// Restaurant order management using backend API
 
 import { Order, OrderStatus } from '@/context/OrderContext';
-
-// Simulate network delay
-const simulateDelay = (min: number = 300, max: number = 800): Promise<void> => {
-  const delay = Math.random() * (max - min) + min;
-  return new Promise(resolve => setTimeout(resolve, delay));
-};
 
 /**
  * Normalize restaurant ID to handle different formats
@@ -27,7 +21,7 @@ const normalizeRestaurantId = (id: string): string => {
  */
 export const getRestaurantOrders = async (restaurantId: string): Promise<Order[]> => {
   try {
-    const RESTAURANT_ORDERS_URL = import.meta.env.VITE_RESTAURANT_ORDERS_API || 'http://localhost:3001/orders';
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
     
     // Normalize restaurant ID for API query
     let restaurantIdParam = restaurantId;
@@ -37,7 +31,7 @@ export const getRestaurantOrders = async (restaurantId: string): Promise<Order[]
       restaurantIdParam = 'restaurant_2';
     }
     
-    const response = await fetch(`${RESTAURANT_ORDERS_URL}?restaurantId=${restaurantIdParam}`);
+    const response = await fetch(`${API_BASE_URL}/orders?restaurant=${restaurantIdParam}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch orders: ${response.status}`);
     }
@@ -63,16 +57,7 @@ export const getRestaurantOrders = async (restaurantId: string): Promise<Order[]
     }));
   } catch (error) {
     console.error('[RestaurantOrderService] Error fetching orders from API:', error);
-    // Fallback to localStorage if API fails
-    await simulateDelay();
-    const orders: Order[] = JSON.parse(localStorage.getItem('orders') || '[]');
-    const normalizedId = normalizeRestaurantId(restaurantId);
-    
-    return orders.filter((order: Order) => {
-      if (!order.restaurantId) return false;
-      const normalizedOrderId = normalizeRestaurantId(order.restaurantId);
-      return normalizedOrderId === normalizedId;
-    });
+    return [];
   }
 };
 
@@ -217,21 +202,6 @@ export const updateOrderStatus = async (orderId: string, status: OrderStatus): P
     return true;
   } catch (error) {
     console.error('[RestaurantOrderService] Error updating order status:', error);
-    // Fallback: Still update local state for UI responsiveness
-    // But note that WebSocket won't broadcast this change
-    const orders: Order[] = JSON.parse(localStorage.getItem('orders') || '[]');
-    const orderIndex = orders.findIndex(o => o.id === orderId);
-    
-    if (orderIndex !== -1) {
-      const order = orders[orderIndex];
-      orders[orderIndex] = {
-        ...order,
-        status,
-        updatedAt: Date.now()
-      };
-      localStorage.setItem('orders', JSON.stringify(orders));
-    }
-    
     throw error; // Re-throw to let caller handle the error
   }
 };

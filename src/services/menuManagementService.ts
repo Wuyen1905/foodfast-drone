@@ -1,6 +1,15 @@
 // Menu Management Service for Restaurant-specific data
-import { mockMenuSweetDreams, mockMenuAloha, mockOrderHistorySweetDreams, mockOrderHistoryAloha } from '../data/mockMenuSweetDreams';
-import { mockMenuAloha as alohaMenu, mockOrderHistoryAloha as alohaOrderHistory } from '../data/mockMenuAloha';
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 export interface MenuItem {
   id: number;
@@ -23,133 +32,248 @@ export interface OrderHistoryItem {
   status: 'Hoàn thành' | 'Đang xử lý' | 'Đã hủy';
 }
 
-// Simulate API delay
-const simulateDelay = (min: number = 500, max: number = 1200): Promise<void> => {
-  const delay = Math.random() * (max - min) + min;
-  return new Promise(resolve => setTimeout(resolve, delay));
+// Normalize restaurant ID
+const normalizeRestaurantId = (restaurantId: string): string => {
+  const map: Record<string, string> = {
+    'rest_2': 'SweetDreams',
+    'restaurant_2': 'Aloha',
+    'sweetdreams': 'SweetDreams',
+    'aloha': 'Aloha'
+  };
+  return map[restaurantId.toLowerCase()] || restaurantId;
 };
 
 // Get dishes by restaurant ID
 export const getDishesByRestaurant = async (restaurantId: string): Promise<MenuItem[]> => {
-  await simulateDelay();
-  
-  // Get from localStorage first, fallback to mock data
-  const storageKey = `foodfast_menu_${restaurantId}`;
-  const storedData = localStorage.getItem(storageKey);
-  
-  if (storedData) {
-    return JSON.parse(storedData);
+  try {
+    const restaurantParam = normalizeRestaurantId(restaurantId);
+    const response = await apiClient.get('/products', {
+      params: { restaurant: restaurantParam }
+    });
+    const products = Array.isArray(response.data) ? response.data : [];
+    
+    // Map products to MenuItem format
+    return products.map((p: any) => ({
+      id: parseInt(p.id.replace(/\D/g, '')) || 0,
+      name: p.name,
+      category: p.category || '',
+      price: p.price || 0,
+      status: p.available ? 'Còn hàng' as const : 'Hết hàng' as const,
+      description: p.description,
+      image: p.imageUrl || p.image
+    }));
+  } catch (error) {
+    console.error('[menuManagementService] Error fetching dishes:', error);
+    return [];
   }
-  
-  // Return mock data based on restaurant
-  const mockData = restaurantId === 'sweetdreams' ? mockMenuSweetDreams : alohaMenu;
-  
-  // Store in localStorage for persistence
-  localStorage.setItem(storageKey, JSON.stringify(mockData));
-  
-  return mockData;
 };
 
 // Add dish by restaurant
 export const addDishByRestaurant = async (restaurantId: string, dish: Omit<MenuItem, 'id'>): Promise<MenuItem> => {
-  await simulateDelay();
-  
-  const storageKey = `foodfast_menu_${restaurantId}`;
-  const existingDishes = await getDishesByRestaurant(restaurantId);
-  
-  // Generate new ID
-  const newId = Math.max(...existingDishes.map(d => d.id), 0) + 1;
-  
-  const newDish: MenuItem = {
-    ...dish,
-    id: newId
-  };
-  
-  const updatedDishes = [...existingDishes, newDish];
-  localStorage.setItem(storageKey, JSON.stringify(updatedDishes));
-  
-  return newDish;
+  try {
+    const restaurantParam = normalizeRestaurantId(restaurantId);
+    const product = {
+      id: `product-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: dish.name,
+      category: dish.category,
+      price: dish.price,
+      available: dish.status === 'Còn hàng',
+      description: dish.description,
+      imageUrl: dish.image,
+      restaurant: restaurantParam
+    };
+    
+    const response = await apiClient.post('/products', product);
+    const saved = response.data;
+    
+    return {
+      id: parseInt(saved.id.replace(/\D/g, '')) || 0,
+      name: saved.name,
+      category: saved.category,
+      price: saved.price,
+      status: saved.available ? 'Còn hàng' as const : 'Hết hàng' as const,
+      description: saved.description,
+      image: saved.imageUrl
+    };
+  } catch (error) {
+    console.error('[menuManagementService] Error adding dish:', error);
+    throw error;
+  }
 };
 
 // Update dish by restaurant
 export const updateDishByRestaurant = async (restaurantId: string, dishId: number, updates: Partial<MenuItem>): Promise<MenuItem | null> => {
-  await simulateDelay();
-  
-  const storageKey = `foodfast_menu_${restaurantId}`;
-  const existingDishes = await getDishesByRestaurant(restaurantId);
-  
-  const dishIndex = existingDishes.findIndex(d => d.id === dishId);
-  if (dishIndex === -1) return null;
-  
-  const updatedDish = { ...existingDishes[dishIndex], ...updates };
-  existingDishes[dishIndex] = updatedDish;
-  
-  localStorage.setItem(storageKey, JSON.stringify(existingDishes));
-  
-  return updatedDish;
+  try {
+    // Find product by ID (need to search since dishId is numeric)
+    const dishes = await getDishesByRestaurant(restaurantId);
+    const dish = dishes.find(d => d.id === dishId);
+    if (!dish) {
+      return null;
+    }
+    
+    // Find the actual product ID from backend
+    const restaurantParam = normalizeRestaurantId(restaurantId);
+    const productsResponse = await apiClient.get('/products', {
+      params: { restaurant: restaurantParam }
+    });
+    const products = Array.isArray(productsResponse.data) ? productsResponse.data : [];
+    const product = products.find((p: any) => p.name === dish.name);
+    
+    if (!product) {
+      return null;
+    }
+    
+    // Update product
+    const updateData: any = {};
+    if (updates.name) updateData.name = updates.name;
+    if (updates.category) updateData.category = updates.category;
+    if (updates.price !== undefined) updateData.price = updates.price;
+    if (updates.status !== undefined) updateData.available = updates.status === 'Còn hàng';
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.image !== undefined) updateData.imageUrl = updates.image;
+    
+    const response = await apiClient.patch(`/products/${product.id}`, updateData);
+    const updated = response.data;
+    
+    return {
+      id: dishId,
+      name: updated.name,
+      category: updated.category,
+      price: updated.price,
+      status: updated.available ? 'Còn hàng' as const : 'Hết hàng' as const,
+      description: updated.description,
+      image: updated.imageUrl
+    };
+  } catch (error) {
+    console.error('[menuManagementService] Error updating dish:', error);
+    return null;
+  }
 };
 
 // Delete dish by restaurant
 export const deleteDishByRestaurant = async (restaurantId: string, dishId: number): Promise<boolean> => {
-  await simulateDelay();
-  
-  const storageKey = `foodfast_menu_${restaurantId}`;
-  const existingDishes = await getDishesByRestaurant(restaurantId);
-  
-  const filteredDishes = existingDishes.filter(d => d.id !== dishId);
-  
-  if (filteredDishes.length === existingDishes.length) return false;
-  
-  localStorage.setItem(storageKey, JSON.stringify(filteredDishes));
-  
-  return true;
+  try {
+    // Find product by dishId
+    const dishes = await getDishesByRestaurant(restaurantId);
+    const dish = dishes.find(d => d.id === dishId);
+    if (!dish) {
+      return false;
+    }
+    
+    // Find the actual product ID
+    const restaurantParam = normalizeRestaurantId(restaurantId);
+    const productsResponse = await apiClient.get('/products', {
+      params: { restaurant: restaurantParam }
+    });
+    const products = Array.isArray(productsResponse.data) ? productsResponse.data : [];
+    const product = products.find((p: any) => p.name === dish.name);
+    
+    if (!product) {
+      return false;
+    }
+    
+    await apiClient.delete(`/products/${product.id}`);
+    return true;
+  } catch (error) {
+    console.error('[menuManagementService] Error deleting dish:', error);
+    return false;
+  }
 };
 
 // Get order history by restaurant
 export const getOrderHistoryByRestaurant = async (restaurantId: string): Promise<OrderHistoryItem[]> => {
-  await simulateDelay();
-  
-  const storageKey = `foodfast_orders_${restaurantId}`;
-  const storedData = localStorage.getItem(storageKey);
-  
-  if (storedData) {
-    return JSON.parse(storedData);
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+    
+    // Normalize restaurant ID
+    let restaurantIdParam = restaurantId;
+    if (restaurantId.toLowerCase() === 'sweetdreams') {
+      restaurantIdParam = 'rest_2';
+    } else if (restaurantId.toLowerCase() === 'aloha') {
+      restaurantIdParam = 'restaurant_2';
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/orders?restaurant=${restaurantIdParam}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch orders: ${response.status}`);
+    }
+    
+    const orders = await response.json();
+    
+    // Map to OrderHistoryItem format
+    return orders.map((o: any) => ({
+      id: o.id,
+      customerName: o.customerName || o.name || '',
+      dishes: (o.items || []).map((item: any) => item.name).join(', '),
+      totalAmount: o.total || 0,
+      orderDate: new Date(o.createdAt || Date.now()).toLocaleDateString('vi-VN'),
+      status: mapOrderStatusToHistoryStatus(o.status)
+    }));
+  } catch (error) {
+    console.error('[menuManagementService] Error fetching order history:', error);
+    return [];
   }
-  
-  // Return mock data based on restaurant
-  const mockData = restaurantId === 'sweetdreams' ? mockOrderHistorySweetDreams : alohaOrderHistory;
-  
-  // Store in localStorage for persistence
-  localStorage.setItem(storageKey, JSON.stringify(mockData));
-  
-  return mockData;
+};
+
+// Helper to map order status
+const mapOrderStatusToHistoryStatus = (status: string): 'Hoàn thành' | 'Đang xử lý' | 'Đã hủy' => {
+  const statusLower = status?.toLowerCase() || '';
+  if (statusLower.includes('delivered') || statusLower.includes('completed') || statusLower.includes('hoàn thành')) {
+    return 'Hoàn thành';
+  }
+  if (statusLower.includes('cancelled') || statusLower.includes('hủy')) {
+    return 'Đã hủy';
+  }
+  return 'Đang xử lý';
 };
 
 // Search dishes by restaurant
 export const searchDishesByRestaurant = async (restaurantId: string, query: string, category?: string, status?: string): Promise<MenuItem[]> => {
-  await simulateDelay();
-  
-  const allDishes = await getDishesByRestaurant(restaurantId);
-  
-  return allDishes.filter(dish => {
-    const matchesQuery = !query || 
-      dish.name.toLowerCase().includes(query.toLowerCase()) ||
-      dish.description?.toLowerCase().includes(query.toLowerCase());
+  try {
+    const dishes = await getDishesByRestaurant(restaurantId);
+    let filtered = dishes;
     
-    const matchesCategory = !category || category === 'Tất cả' || dish.category === category;
-    const matchesStatus = !status || status === 'Tất cả' || dish.status === status;
+    // Filter by search query
+    if (query) {
+      const lowerQuery = query.toLowerCase();
+      filtered = filtered.filter(d => 
+        d.name.toLowerCase().includes(lowerQuery) ||
+        d.description?.toLowerCase().includes(lowerQuery)
+      );
+    }
     
-    return matchesQuery && matchesCategory && matchesStatus;
-  });
+    // Filter by category
+    if (category && category !== 'Tất cả') {
+      filtered = filtered.filter(d => d.category === category);
+    }
+    
+    // Filter by status
+    if (status) {
+      filtered = filtered.filter(d => d.status === status);
+    }
+    
+    return filtered;
+  } catch (error) {
+    console.error('[menuManagementService] Error searching dishes:', error);
+    return [];
+  }
 };
 
 // Get categories by restaurant
 export const getCategoriesByRestaurant = async (restaurantId: string): Promise<string[]> => {
-  await simulateDelay();
-  
-  const dishes = await getDishesByRestaurant(restaurantId);
-  const categories = [...new Set(dishes.map(dish => dish.category))];
-  return ['Tất cả', ...categories.sort()];
+  try {
+    const dishes = await getDishesByRestaurant(restaurantId);
+    const categories = new Set<string>(['Tất cả']);
+    dishes.forEach(d => {
+      if (d.category) {
+        categories.add(d.category);
+      }
+    });
+    return Array.from(categories);
+  } catch (error) {
+    console.error('[menuManagementService] Error fetching categories:', error);
+    return ['Tất cả'];
+  }
 };
 
 // Get restaurant statistics
@@ -159,17 +283,42 @@ export const getRestaurantMenuStats = async (restaurantId: string): Promise<{
   outOfStockDishes: number;
   totalRevenue: number;
 }> => {
-  await simulateDelay();
-  
-  const dishes = await getDishesByRestaurant(restaurantId);
-  const orders = await getOrderHistoryByRestaurant(restaurantId);
-  
-  return {
-    totalDishes: dishes.length,
-    availableDishes: dishes.filter(d => d.status === 'Còn hàng').length,
-    outOfStockDishes: dishes.filter(d => d.status === 'Hết hàng').length,
-    totalRevenue: orders
-      .filter(o => o.status === 'Hoàn thành')
-      .reduce((sum, order) => sum + order.totalAmount, 0)
-  };
+  try {
+    const dishes = await getDishesByRestaurant(restaurantId);
+    
+    // Get orders for revenue calculation
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+    let restaurantIdParam = restaurantId;
+    if (restaurantId.toLowerCase() === 'sweetdreams') {
+      restaurantIdParam = 'rest_2';
+    } else if (restaurantId.toLowerCase() === 'aloha') {
+      restaurantIdParam = 'restaurant_2';
+    }
+    
+    let totalRevenue = 0;
+    try {
+      const ordersResponse = await fetch(`${API_BASE_URL}/orders?restaurant=${restaurantIdParam}`);
+      if (ordersResponse.ok) {
+        const orders = await ordersResponse.json();
+        totalRevenue = orders.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
+      }
+    } catch (e) {
+      // Ignore revenue calculation errors
+    }
+    
+    return {
+      totalDishes: dishes.length,
+      availableDishes: dishes.filter(d => d.status === 'Còn hàng').length,
+      outOfStockDishes: dishes.filter(d => d.status === 'Hết hàng').length,
+      totalRevenue
+    };
+  } catch (error) {
+    console.error('[menuManagementService] Error fetching stats:', error);
+    return {
+      totalDishes: 0,
+      availableDishes: 0,
+      outOfStockDishes: 0,
+      totalRevenue: 0
+    };
+  }
 };

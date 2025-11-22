@@ -259,7 +259,7 @@ const Cart: React.FC = () => {
                       src={c.image || ''} 
                       alt={c.name} 
                       onError={(e) => { 
-                        (e.currentTarget.src = 'https://via.placeholder.com/80x80?text=No+Image'); 
+                        (e.currentTarget.src = 'https://placehold.co/400x300?text=No+Image&font=roboto'); 
                       }} 
                     />
                     <div style={{ flex: 1 }}>

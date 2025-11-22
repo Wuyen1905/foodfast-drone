@@ -3,13 +3,74 @@ import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DroneData,
-  generateMockDrones,
   updateDronePosition,
   getStatusLabel,
   getStatusColor,
   formatDistance,
   formatTime
-} from '../../services/DroneSimulationService';
+} from '@/services/DroneSimulationService';
+
+// Fetch drones from backend API
+const fetchDrones = async (): Promise<DroneData[]> => {
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+    const response = await fetch(`${API_BASE_URL}/drones`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch drones: ${response.status}`);
+    }
+    const drones = await response.json();
+    
+    // Default restaurant position (Ho Chi Minh City)
+    const defaultRestaurantPos = { lat: 10.762622, lng: 106.660172 };
+    
+    // Map backend drones to DroneData format
+    return Array.isArray(drones) ? drones.map((d: any) => {
+      const position = d.position || { lat: d.positionLat || defaultRestaurantPos.lat, lng: d.positionLng || defaultRestaurantPos.lng };
+      const speedMps = d.speedMps || 10; // Default 10 m/s = 36 km/h
+      const battery = d.battery || d.batteryLevel || 100;
+      
+      // Calculate destination (for now, use a fixed offset from restaurant for simulation)
+      const destination = d.orderId ? {
+        lat: defaultRestaurantPos.lat + 0.01,
+        lng: defaultRestaurantPos.lng + 0.01
+      } : position;
+      
+      // Calculate distance to destination
+      const distanceRemaining = Math.sqrt(
+        Math.pow((destination.lat - position.lat) * 111000, 2) +
+        Math.pow((destination.lng - position.lng) * 111000, 2)
+      );
+      
+      return {
+        id: d.id,
+        restaurant: d.restaurantId || d.restaurant || '',
+        orderId: d.currentOrderId || d.orderId || null,
+        status: mapDroneStatus(d.status),
+        position: destination,
+        currentPosition: position,
+        restaurantPosition: defaultRestaurantPos,
+        waypoints: d.waypoints || [],
+        speedMps: speedMps,
+        speed: speedMps * 3.6, // Convert m/s to km/h
+        battery: battery,
+        distanceRemaining: distanceRemaining,
+        estimatedArrival: speedMps > 0 ? distanceRemaining / speedMps : 0,
+        updatedAt: d.updatedAt || new Date().toISOString()
+      };
+    }) : [];
+  } catch (error) {
+    console.error('[DroneTrackerMap] Error fetching drones:', error);
+    return [];
+  }
+};
+
+// Helper to map backend drone status to frontend status
+const mapDroneStatus = (status: string): 'delivering' | 'arrived' | 'returning' => {
+  const statusLower = status?.toLowerCase() || '';
+  if (statusLower.includes('delivering')) return 'delivering';
+  if (statusLower.includes('idle') || statusLower.includes('ready')) return 'returning';
+  return 'arrived';
+};
 
 const Container = styled.div`
   background: white;
@@ -272,7 +333,8 @@ const DroneTrackerMap: React.FC<DroneTrackerMapProps> = ({ theme }) => {
   const [isSimulating, setIsSimulating] = useState(false);
 
   useEffect(() => {
-    setDrones(generateMockDrones(8));
+    // TODO: Backend integration in Phase 2 - load drones from API
+    fetchDrones().then(setDrones).catch(() => setDrones([]));
   }, []);
 
   useEffect(() => {
@@ -294,7 +356,7 @@ const DroneTrackerMap: React.FC<DroneTrackerMapProps> = ({ theme }) => {
           <Button $variant="danger" onClick={() => setIsSimulating(false)} disabled={!isSimulating}>
             ⏸️ Tạm dừng
           </Button>
-          <Button onClick={() => { setIsSimulating(false); setDrones(generateMockDrones(8)); }}>
+          <Button onClick={() => { setIsSimulating(false); fetchDrones().then(setDrones).catch(() => setDrones([])); }}>
             🔄 Đặt lại
           </Button>
         </Controls>

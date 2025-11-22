@@ -7,8 +7,7 @@ import {
   addMenuItem,
   updateMenuItem,
   deleteMenuItem,
-  toggleProductAvailability,
-  initializeDefaultData
+  toggleProductAvailability
 } from '@/services/menuService';
 import toast from 'react-hot-toast';
 
@@ -49,10 +48,7 @@ export const MenuProvider: React.FC<MenuProviderProps> = ({ children }) => {
   const [alohaAvailableProducts, setAlohaAvailableProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Initialize default data
-  useEffect(() => {
-    initializeDefaultData();
-  }, []);
+  // Data is now loaded from backend API via loadProducts()
 
   // Load all products
   const loadProducts = async () => {

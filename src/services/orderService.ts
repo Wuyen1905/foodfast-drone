@@ -9,10 +9,9 @@ import { Order } from '../context/OrderContext';
 import { Drone } from './droneManager';
 import { getDroneByOrder, fetchAllDrones } from './droneService';
 
-// [Two-Way Sync] API base URL for restaurant mock server
-// Uses environment variable if available, otherwise falls back to port 3001
-// Environment variable format: VITE_RESTAURANT_API_BASE_URL=http://localhost:3001
-const API_BASE_URL = import.meta.env.VITE_RESTAURANT_API_BASE_URL || 'http://localhost:3001';
+// [Two-Way Sync] API base URL for Spring Boot backend
+// Uses environment variable if available, otherwise falls back to /api (for Vite proxy)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 /**
  * Get order by ID from API
