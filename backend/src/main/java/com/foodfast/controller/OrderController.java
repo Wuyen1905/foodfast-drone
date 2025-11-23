@@ -32,7 +32,6 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping({"/api/orders", "/orders"})
-@CrossOrigin(origins = "*")
 public class OrderController {
 
     private final OrderService orderService;
@@ -48,10 +47,20 @@ public class OrderController {
     @GetMapping
     public ResponseEntity<?> getOrders(@RequestParam(required = false) String paymentSessionId,
                                        @RequestParam(required = false) String phone,
-                                       @RequestParam(required = false) String restaurant) {
+                                       @RequestParam(required = false) String restaurant,
+                                       @RequestParam(required = false) String restaurantId) {
         try {
-            System.out.println("[OrderController] GET /api/orders - psId: " + paymentSessionId + ", phone: " + phone + ", restaurant: " + restaurant);
-            List<Order> orders = orderService.findOrders(paymentSessionId, phone, restaurant);
+            // Prefer restaurantId parameter
+            String finalRestaurant = (restaurantId != null && !restaurantId.isBlank())
+                    ? restaurantId
+                    : restaurant;
+
+            System.out.println("[OrderController] GET /api/orders - psId=" 
+                    + paymentSessionId + ", phone=" + phone 
+                    + ", restaurantId=" + finalRestaurant);
+
+            List<Order> orders = orderService.findOrders(paymentSessionId, phone, finalRestaurant);
+
             return ResponseEntity.ok(orders != null ? orders : List.of());
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -72,7 +81,15 @@ public class OrderController {
         if (request.paymentSessionId != null && !request.paymentSessionId.isBlank()) {
             saved.setPaymentSessionId(request.paymentSessionId);
         }
+
+        // Global realtime
         messagingTemplate.convertAndSend("/topic/orders", saved);
+
+        // Restaurant-specific realtime
+        if (saved.getRestaurantId() != null) {
+            messagingTemplate.convertAndSend("/topic/orders/" + saved.getRestaurantId(), saved);
+        }
+
         realtimeService.sendOrderUpdate(saved);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
@@ -98,7 +115,6 @@ public class OrderController {
                         rawStatus.trim().toUpperCase(Locale.ROOT)
                 );
                 order = orderService.updateStatus(id, status);
-                messagingTemplate.convertAndSend("/topic/orders", order);
                 updated = true;
             }
 
@@ -146,6 +162,13 @@ public class OrderController {
 
             if (updated) {
                 order = orderService.save(order);
+
+                messagingTemplate.convertAndSend("/topic/orders", order);
+
+                if (order.getRestaurantId() != null) {
+                    messagingTemplate.convertAndSend("/topic/orders/" + order.getRestaurantId(), order);
+                }
+
                 realtimeService.sendOrderUpdate(order);
                 return ResponseEntity.ok(order);
             }

@@ -1,589 +1,658 @@
-================ MOCK SCAN REPORT ================
+# Mock Data & Bypass Code Scan Report
 
-[1] File: frontend-web/src/services/adminService.ts
-    Line(s): 1, 64-260, 262-553
-    Snippet:
-        // Admin Service - Mock data for admin management
-        ...
-        // Mock data for restaurants
-        const mockRestaurants: Restaurant[] = [
-          {
-            id: "sweetdreams",
-            name: "SweetDreams Bakery",
-            ...
-          }
-        ];
-        // Mock data for system logs
-        const mockSystemLogs: SystemLog[] = [...]
-        // Mock data for drone fleet
-        const mockDroneFleet: DroneFleet[] = [...]
-        // Mock data for customers
-        const mockCustomers: Customer[] = [...]
-        // Helper function to simulate network delay
-        const simulateDelay = (min: number = 800, max: number = 1500): Promise<void> => {
-          const delay = Math.random() * (max - min) + min;
-          return new Promise(resolve => setTimeout(resolve, delay));
-        };
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: Complete mock service with hardcoded arrays of restaurants, customers, drones, and system logs. Uses setTimeout to simulate network delays. All functions return mock data instead of calling real APIs.
-    Recommended Fix: Replace with real API calls to backend endpoints. Remove all mock data arrays and simulateDelay function.
+**Date:** 2025-11-23  
+**Scope:** Entire repository (backend, web, frontend-mobile, frontend-web)  
+**Purpose:** Identify all mock data, hardcoded arrays, fake scenario logic, and temporary bypass code
 
-[2] File: frontend-web/src/services/customerService.ts
-    Line(s): 1-110
-    Snippet:
-        // Customer Service - Mock API for customer registration and management
-        ...
-        // Mock API response interface
-        interface ApiResponse<T> {
-          ok: boolean;
-          data?: T;
-          message?: string;
-        }
-        // Simulate network delay
-        const simulateDelay = (min: number = 500, max: number = 1200): Promise<void> => {
-          const delay = Math.random() * (max - min) + min;
-          return new Promise(resolve => setTimeout(resolve, delay));
-        };
-        // Mock customer registration endpoint
-        export const registerCustomer = async (payload: RegisterPayload): Promise<ApiResponse<User>> => {
-          await simulateDelay();
-          // Simulate API call to /api/customers/register
-          console.log("🌐 [CustomerService] Mock API call to /api/customers/register", payload);
-          ...
-        };
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: Complete mock API service for customer registration, login, profile updates, and deletion. Uses setTimeout to simulate network delays. All functions return fake data instead of making real API calls.
-    Recommended Fix: Replace with real API calls using axios to backend endpoints. Remove simulateDelay and all mock logic.
+---
 
-[3] File: frontend-web/src/data/adminData.ts
-    Line(s): 1-125
-    Snippet:
-        /**
-         * Admin Mock Data
-         * This file contains mock data for the admin dashboard
-         */
-        ...
-        // Generate mock drones for each restaurant
-        export const generateMockDrones = async (): Promise<AdminDrone[]> => {
-          const drones: AdminDrone[] = [];
-          const statuses: AdminDrone['status'][] = ['Idle', 'Delivering', 'Charging', 'Maintenance'];
-          ...
-        };
-        // Generate mock restaurant data with admin-specific fields
-        export const generateMockRestaurants = async (): Promise<AdminRestaurant[]> => {
-          ...
-        };
-        // Generate mock customer data
-        export const generateMockCustomers = async (): Promise<AdminCustomer[]> => {
-          ...
-        };
-        // Initial system logs
-        export const initialSystemLogs: SystemLog[] = [
-          {
-            id: 'log_001',
-            timestamp: Date.now() - 3600000,
-            ...
-          }
-        ];
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: Mock data generators for admin dashboard. Creates fake drones, restaurants, customers, and system logs. Used by admin dashboard for displaying data.
-    Recommended Fix: Replace generators with real API calls. Remove all mock data generation functions and use backend APIs instead.
+## 1. HARDCODED PRODUCTS ARRAY
 
-[4] File: frontend-web/src/services/DroneSimulationService.ts
-    Line(s): 1-249
-    Snippet:
-        /**
-         * Drone Simulation Service
-         * Handles mock drone data and position updates for restaurant dashboard
-         */
-        // Mock restaurant location (Hanoi, Vietnam)
-        const RESTAURANT_LOCATION: DroneCoordinates = {
-          lat: 21.0285,
-          lng: 105.8542
-        };
-        // Generate mock drone data
-        export function generateMockDrones(count: number = 8): DroneData[] {
-          const drones: DroneData[] = [];
-          const statuses: DroneData['status'][] = ['active', 'enroute', 'enroute', 'enroute', 'returning', 'charging'];
-          ...
-        };
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: Mock drone simulation service that generates fake drone data with random positions, statuses, and battery levels. Used for restaurant dashboard drone tracking.
-    Recommended Fix: Replace with real drone API integration. Remove generateMockDrones function and use real drone data from backend.
+### Finding 1.1
+**File:** `web/src/data/products.ts`  
+**Lines:** 15-139  
+**Category:** Mock Data / Hardcoded Array
 
-[5] File: mock-api/server.js
-    Line(s): 1-941
-    Snippet:
-        const express = require('express');
-        const fs = require('fs');
-        const path = require('path');
-        ...
-        // [5000] Database file location
-        const DB_FILE = path.join(__dirname, 'db.json');
-        ...
-        // [Mock API] Handle GET /orders - Return all orders
-        app.get('/orders', (req, res) => {
-          try {
-            const db = readDatabase();
-            const orders = db.orders || [];
-            res.status(200).json(orders);
-          } catch (error) {
-            console.error('[MOCK API] Error in GET /orders:', error);
-            res.status(200).json([]);
-          }
-        });
-        // [Mock API] Handle GET /restaurants - Return all restaurants
-        app.get('/restaurants', (req, res) => {
-          ...
-        });
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: Entire mock API server using json-server pattern with db.json file. Provides mock endpoints for orders, restaurants, products, drones, and users. This is a complete mock API implementation.
-    Recommended Fix: This entire directory (mock-api/) should be removed or replaced with real backend integration. All endpoints should point to the actual Java backend.
+**Code Snippet:**
+```typescript
+export const products: Product[] = [
+  // SweetDreams Bakery Products
+  {
+    id: "sd-001",
+    name: "Bánh Donut",
+    price: 25000,
+    restaurant: "SweetDreams",
+    // ... 9 more hardcoded products
+  }
+];
+```
 
-[6] File: mock-api/db.json
-    Line(s): 1-7
-    Snippet:
-        {
-          "restaurants": [],
-          "products": [],
-          "orders": [],
-          "drones": [],
-          "users": []
-        }
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: Mock database JSON file used by mock-api server. Stores fake data for restaurants, products, orders, drones, and users.
-    Recommended Fix: Remove this file. Data should come from real backend database.
+**Problem:** Hardcoded array of 10 products (5 SweetDreams, 5 Aloha) competing with backend API `/api/products`. Components import this directly instead of fetching from API.
 
-[7] File: frontend-web/src/context/AdminAuthContext.tsx
-    Line(s): 33-46
-    Snippet:
-        const login = async (username: string, password: string) => {
-          setLoading(true);
-          await new Promise((r) => setTimeout(r, 400));
-          
-          // Mock admin credentials
-          if (username === 'admin' && password === 'admin123') {
-            const adminUser: User = {
-              id: 'admin_1',
-              name: 'System Administrator',
-              username: 'admin',
-              role: 'admin',
-              email: 'admin@foodfast.com',
-              createdAt: Date.now() - 86400000 * 365
-            };
-            setAdmin(adminUser);
-            setLoading(false);
-            return { ok: true };
-          }
-          ...
-        };
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: Hardcoded mock admin credentials (admin/admin123). Authentication is done locally without backend validation.
-    Recommended Fix: Replace with real authentication API call to backend. Remove hardcoded credentials check.
+**Impact on Real-time Sync:** Products displayed may be stale. Real-time product updates from backend won't reflect in components using this file. Product availability changes won't update in real-time.
 
-[8] File: frontend-web/src/pages/admin/AdminOrders.tsx
-    Line(s): 136-194
-    Snippet:
-        const AdminOrders: React.FC = () => {
-          const [orders, setOrders] = useState<Order[]>([
-            {
-              id: 'ORD-001',
-              userId: 'u2',
-              restaurantId: 'rest_1',
-              items: [
-                { id: 'item1', productId: 'prod1', productName: 'Burger Deluxe', quantity: 2, price: 15.99 },
-                ...
-              ],
-              total: 37.97,
-              status: 'delivered',
-              ...
-            },
-            {
-              id: 'ORD-002',
-              ...
-            },
-            {
-              id: 'ORD-003',
-              ...
-            },
-            {
-              id: 'ORD-004',
-              ...
-            }
-          ]);
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: Hardcoded array of mock orders initialized in component state. Contains fake order data with hardcoded IDs, items, and statuses.
-    Recommended Fix: Initialize with empty array and fetch orders from real API on component mount. Remove all hardcoded order data.
+**Used In:**
+- `web/src/pages/Cart.tsx:137` - `const productMap = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), []);`
+- `web/src/pages/Details.tsx:100` - `const product = products.find(p => p.id === id);`
+- `web/src/pages/Menu.tsx:5` - `import { products, Product } from '../data/products';`
+- `web/src/pages/Home.tsx:5` - `import { products, Product } from '../data/products';`
 
-[9] File: frontend-web/src/components/restaurant/RestaurantAnalytics.tsx
-    Line(s): 286-350
-    Snippet:
-        const RestaurantAnalytics: React.FC<AnalyticsProps> = ({ theme, restaurant = "SweetDreams" }) => {
-          // Mock data
-          const kpiData = [
-            {
-              icon: '📦',
-              label: 'Tổng đơn hàng hôm nay',
-              value: '156',
-              change: '+12%',
-              positive: true,
-              ...
-            },
-            ...
-          ];
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: Hardcoded mock KPI data array with fake metrics (orders, revenue, etc.). Used for displaying restaurant analytics.
-    Recommended Fix: Replace with real API call to fetch analytics data from backend. Remove hardcoded kpiData array.
+---
 
-[10] File: web/src/data/mockData.ts
-    Line(s): 1-104
-    Snippet:
-        import { Restaurant, User } from '../types/auth';
-        
-        // Mock data for restaurants and users
-        export const RESTAURANTS: Restaurant[] = [
-          {
-            id: 'rest_1',
-            name: 'FoodFast Restaurant',
-            ...
-          },
-          ...
-        ];
-        export const USERS: User[] = [
-          ...
-        ];
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: Hardcoded arrays of RESTAURANTS and USERS exported as constants. Contains fake restaurant and user data.
-    Recommended Fix: Remove this file or replace exports with API calls. All references to RESTAURANTS and USERS should use backend APIs.
+## 2. HARDCODED RESTAURANTS ARRAY
 
-[11] File: web/src/data/mockMenuAloha.ts
-    Line(s): 1-75
-    Snippet:
-        // Mock menu data for Aloha Kitchen
-        export interface MenuItem {
-          ...
-        }
-        
-        export const mockMenuAloha: MenuItem[] = [
-          {
-            id: 1,
-            name: "Hamburger",
-            category: "Món chính",
-            price: 79000,
-            ...
-          },
-          ...
-        ];
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: Hardcoded mock menu array for Aloha Kitchen restaurant. Contains fake menu items with prices and descriptions.
-    Recommended Fix: Remove this file. Menu data should come from backend API or database.
+### Finding 2.1
+**File:** `web/src/pages/admin/AdminRestaurants.tsx`  
+**Lines:** 130-179  
+**Category:** Mock Data / Hardcoded Array
 
-[12] File: frontend-web/src/components/restaurant/DroneTrackerMap.tsx
-    Line(s): 294-303, 324
-    Snippet:
-        // Fallback to mock data if loading or error
-        const [fallbackDrones, setFallbackDrones] = useState<DroneData[]>([]);
-        
-        useEffect(() => {
-          if (loading || error || drones.length === 0) {
-            setFallbackDrones(generateMockDrones(8));
-          } else {
-            setFallbackDrones(drones);
-          }
-        }, [drones, loading, error]);
-        ...
-        <Button onClick={() => { setIsSimulating(false); setFallbackDrones(generateMockDrones(8)); }}>
-          🔄 Đặt lại
-        </Button>
-    Type: HIGH_RISK
-    Reason: Fallback logic that uses mock drone data when API fails or is loading. Also has button to reset to mock data. This creates a fallback path to mock data.
-    Recommended Fix: Remove fallback to generateMockDrones. Show error state or loading spinner instead. Remove reset button that generates mock data.
+**Code Snippet:**
+```typescript
+const [restaurants, setRestaurants] = useState<Restaurant[]>([
+  {
+    id: 'rest_1',
+    name: 'FoodFast Restaurant',
+    // ... hardcoded data
+  },
+  {
+    id: 'rest_2',
+    name: 'SweetDreams Bakery',
+    // ... hardcoded data
+  },
+  {
+    id: 'rest_3',
+    name: 'Pizza Palace', // ⚠️ This restaurant doesn't exist in backend data.sql
+    // ... hardcoded data
+  }
+]);
+```
 
-[13] File: frontend-web/src/pages/admin/AdminDashboard.tsx
-    Line(s): 358-369
-    Snippet:
-        } catch (error) {
-          console.error("[AdminDashboard] Error loading data:", error);
-          
-          // Fallback to mock data
-          setRestaurants([
-            { id: '1', name: 'Aloha Kitchen', status: 'Đang hoạt động', category: 'Asian Fusion', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 2 },
-            { id: '2', name: 'SweetDreams Bakery', status: 'Đang hoạt động', category: 'Bakery', totalOrders: 0, totalRevenue: 0, rating: 0, droneCount: 3 }
-          ]);
-          setCustomers([]);
-          setDrones([]);
-          setLogs([]);
-          setStats({
-            totalRestaurants: 2,
-            totalCustomers: 0,
-            ...
-          });
-        }
-    Type: HIGH_RISK
-    Reason: Fallback logic that sets mock data when API call fails. Creates fallback path to mock data instead of showing error state.
-    Recommended Fix: Remove fallback mock data. Show error message to user instead. Let error state be handled properly.
+**Problem:** Initial state contains hardcoded restaurant array including fake "Pizza Palace" (rest_3) that doesn't exist in backend `data.sql`. Should fetch from `/api/restaurants` or `/api/admin/restaurants`.
 
-[14] File: frontend-web/src/components/OrderCard.tsx
-    Line(s): 72-87
-    Snippet:
-        const updateOrderStatus = (newStatus: string) => {
-          // Update order status in localStorage
-          const users = JSON.parse(localStorage.getItem('mock_users') || '[]');
-          const userIndex = users.findIndex((u: any) => u.phone === order.userPhone);
-          
-          if (userIndex !== -1) {
-            const orderIndex = users[userIndex].orders.findIndex((o: any) => o.id === order.id);
-            if (orderIndex !== -1) {
-              users[userIndex].orders[orderIndex].status = newStatus;
-              localStorage.setItem('mock_users', JSON.stringify(users));
-              
-              // Update global order history
-              const history = JSON.parse(localStorage.getItem('orderHistory') || '[]');
-              const historyIndex = history.findIndex((o: any) => o.id === order.id);
-              if (historyIndex !== -1) {
-                history[historyIndex].status = newStatus;
-                localStorage.setItem('orderHistory', JSON.stringify(history));
-              }
-            }
-          }
-        };
-    Type: HIGH_RISK
-    Reason: Uses localStorage key 'mock_users' to store and update order data. This is mock residue - using localStorage as a database instead of backend API.
-    Recommended Fix: Replace with real API call to update order status. Remove all localStorage operations for order data. Use backend order API instead.
+**Impact on Real-time Sync:** Admin sees incorrect restaurant list on initial load. Real-time restaurant updates won't reflect until manual refresh.
 
-[15] File: frontend-web/package.json
-    Line(s): 27
-    Snippet:
-        "dependencies": {
-          ...
-          "axios-mock-adapter": "^2.1.0",
-          ...
-        }
-    Type: MODERATE
-    Reason: axios-mock-adapter dependency in package.json. This package is used for mocking axios requests in tests/development. May be unused or only used in tests.
-    Recommended Fix: Check if this is used anywhere. If only in tests, move to devDependencies. If unused, remove entirely.
+---
 
-[16] File: frontend-web/src/state/droneStore.ts
-    Line(s): 11-15
-    Snippet:
-        // Mock restaurant location (Ho Chi Minh City)
-        const RESTAURANT_LOCATION: Coordinates = {
-          lat: 10.7820,
-          lng: 106.6950
-        };
-    Type: MODERATE
-    Reason: Hardcoded mock restaurant location. Should come from restaurant data or API.
-    Recommended Fix: Fetch restaurant location from API or restaurant data instead of hardcoding.
+## 3. ADMIN AUTHENTICATION BYPASS (CRITICAL)
 
-[17] File: frontend-web/src/services/DroneSimulationService.ts
-    Line(s): 25-29
-    Snippet:
-        // Mock restaurant location (Hanoi, Vietnam)
-        const RESTAURANT_LOCATION: DroneCoordinates = {
-          lat: 21.0285,
-          lng: 105.8542
-        };
-    Type: MODERATE
-    Reason: Hardcoded mock restaurant location. Should be dynamic based on actual restaurant data.
-    Recommended Fix: Make location dynamic based on restaurant ID or fetch from API.
+### Finding 3.1
+**File:** `web/src/context/AdminAuthContext.tsx`  
+**Lines:** 33-46  
+**Category:** Bypass / Security Risk
 
-[18] File: frontend-mobile/src/api/mock.ts
-    Line(s): 1-21
-    Snippet:
-        import axios from 'axios';
-        
-        // [Data Sync] Use shared mock API server instead of AxiosMockAdapter
-        // For mobile devices, you may need to use your computer's IP address instead of localhost
-        // Example: 'http://192.168.1.100:5000' (replace with your actual IP)
-        const API_BASE_URL = __DEV__ 
-          ? 'http://192.168.0.100:8080/api'  // For iOS Simulator / Android Emulator
-          : 'http://192.168.0.100:8080/api';  // For physical devices, replace with your computer's IP
-        
-        export const api = axios.create({ 
-          baseURL: API_BASE_URL,
-          timeout: 10000,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        // [Data Sync] Note: Removed AxiosMockAdapter - now using backend API
-    Type: MODERATE
-    Reason: File named "mock.ts" but actually points to backend API. Name is misleading. Comments mention mock API server.
-    Recommended Fix: Rename file to api.ts or backendApi.ts. Update all imports. Remove misleading comments about mock API.
+**Code Snippet:**
+```typescript
+const login = async (username: string, password: string) => {
+  setLoading(true);
+  await new Promise((r) => setTimeout(r, 400));
+  
+  // Mock admin credentials
+  if (username === 'admin' && password === 'admin123') {
+    const adminUser: User = {
+      id: 'admin_1',
+      name: 'System Administrator',
+      username: 'admin',
+      role: 'admin',
+      email: 'admin@foodfast.com',
+      createdAt: Date.now() - 86400000 * 365
+    };
+    setAdmin(adminUser);
+    setLoading(false);
+    return { ok: true };
+  }
+  
+  setLoading(false);
+  return { ok: false, message: "Invalid admin credentials" };
+};
+```
 
-[19] File: frontend-mobile/src/config/axios.ts
-    Line(s): 3
-    Snippet:
-        // Base URL for the mock API
-        const API_BASE_URL = ...
-    Type: MODERATE
-    Reason: Comment says "Base URL for the mock API" but should say "Base URL for the backend API".
-    Recommended Fix: Update comment to reflect that it's the backend API, not mock API.
+**Problem:** **CRITICAL SECURITY RISK** - Hardcoded admin credentials bypass backend authentication entirely. Credentials visible in client-side code. No backend validation.
 
-[20] File: frontend-web/src/test/setup.ts
-    Line(s): 3-10
-    Snippet:
-        // Mock localStorage
-        const localStorageMock = {
-          getItem: vi.fn(),
-          setItem: vi.fn(),
-          removeItem: vi.fn(),
-          clear: vi.fn(),
-        };
-        global.localStorage = localStorageMock;
-    Type: LOW
-    Reason: Test setup file that mocks localStorage for testing purposes. This is acceptable for tests.
-    Recommended Fix: No action needed - this is proper test mocking.
+**Impact on Real-time Sync:** Admin actions not tracked by backend. Real-time admin notifications won't work correctly (backend doesn't know admin is logged in). Security audit trail broken.
 
-[21] File: frontend-web/src/services/adminService.ts
-    Line(s): 262-266
-    Snippet:
-        // Helper function to simulate network delay
-        const simulateDelay = (min: number = 800, max: number = 1500): Promise<void> => {
-          const delay = Math.random() * (max - min) + min;
-          return new Promise(resolve => setTimeout(resolve, delay));
-        };
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: setTimeout used to simulate API delay. This is mock behavior that should be removed.
-    Recommended Fix: Remove simulateDelay function and all calls to it. Real API calls will have natural delays.
+---
 
-[22] File: frontend-web/src/services/customerService.ts
-    Line(s): 11-15
-    Snippet:
-        // Simulate network delay
-        const simulateDelay = (min: number = 500, max: number = 1200): Promise<void> => {
-          const delay = Math.random() * (max - min) + min;
-          return new Promise(resolve => setTimeout(resolve, delay));
-        };
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: setTimeout used to simulate API delay. This is mock behavior.
-    Recommended Fix: Remove simulateDelay function and all calls to it.
+### Finding 3.2
+**File:** `web/src/pages/admin/AdminLogin.tsx`  
+**Lines:** 195-200  
+**Category:** Bypass / Security Risk
 
-[23] File: frontend-web/src/services/menuService.ts
-    Line(s): 7-9, 10-26, 227-229
-    Snippet:
-        const simulateDelay = (ms: number = 300) => {
-          return new Promise(resolve => setTimeout(resolve, delay));
-        };
-        // Load products from localStorage or use default
-        export const loadProducts = async (): Promise<Product[]> => {
-          const stored = localStorage.getItem("foodfast_products");
-          ...
-        };
-        // Initialize default data if localStorage is empty
-        export const initializeDefaultData = async (): Promise<void> => {
-          const stored = localStorage.getItem("foodfast_products");
-          ...
-        };
-    Type: HIGH_RISK
-    Reason: Uses localStorage to store products instead of backend API. Also uses setTimeout to simulate delays.
-    Recommended Fix: Replace localStorage operations with real API calls. Remove simulateDelay function.
+**Code Snippet:**
+```typescript
+<CredentialsBox>
+  <CredentialsTitle>🔐 Tài khoản Admin:</CredentialsTitle>
+  <CredentialsList>
+    <div><strong>Admin:</strong> admin / admin123</div>
+  </CredentialsList>
+</CredentialsBox>
+```
 
-[24] File: frontend-web/src/services/restaurantOrderService.ts
-    Line(s): 9-11, 40-82, 107-127, 152-166, 191-210
-    Snippet:
-        const simulateDelay = (ms: number = 300) => {
-          return new Promise(resolve => setTimeout(resolve, ms));
-        };
-        // For now, get from localStorage via OrderContext
-        const orders: Order[] = JSON.parse(localStorage.getItem('orders') || '[]');
-        ...
-        // For now, update localStorage
-        const orders: Order[] = JSON.parse(localStorage.getItem('orders') || '[]');
-        ...
-    Type: HIGH_RISK
-    Reason: Uses localStorage to store orders instead of backend API. Uses setTimeout to simulate delays. Comments say "For now" indicating temporary mock implementation.
-    Recommended Fix: Replace all localStorage operations with real API calls to backend. Remove simulateDelay function.
+**Problem:** Admin credentials displayed directly in UI. Security risk if visible in production.
 
-[25] File: frontend-web/src/context/OrderContext.tsx
-    Line(s): 42-47
-    Snippet:
-        useEffect(() => {
-          const saved = localStorage.getItem("orders");
-          if (saved) {
-            const orders = JSON.parse(saved);
-            setOrders(orders);
-          }
-        }, []);
-        useEffect(() => {
-          localStorage.setItem("orders", JSON.stringify(orders));
-        }, [orders]);
-    Type: HIGH_RISK
-    Reason: Uses localStorage to persist orders instead of backend API. This is mock residue using localStorage as database.
-    Recommended Fix: Replace with real API calls. Fetch orders from backend on mount, save to backend on changes.
+**Impact on Real-time Sync:** Minor - doesn't directly affect sync, but security risk could allow unauthorized access.
 
-[26] File: frontend-web/src/services/restaurantNotificationService.ts
-    Line(s): 33, 42-64
-    Snippet:
-        await new Promise(resolve => setTimeout(resolve, 300));
-        ...
-        // For now, we'll store the notification in localStorage
-        const notificationKey = `restaurant_notifications_${restaurantId}`;
-        const existingNotifications = JSON.parse(
-          localStorage.getItem(notificationKey) || '[]'
-        );
-        ...
-        localStorage.setItem(notificationKey, JSON.stringify(recentNotifications));
-    Type: HIGH_RISK
-    Reason: Uses localStorage to store notifications instead of backend API. Uses setTimeout to simulate delay. Comment says "For now" indicating temporary mock implementation.
-    Recommended Fix: Replace localStorage operations with real API calls. Remove setTimeout delay simulation.
+---
 
-[27] File: web/src/data/mockMenuSweetDreams.ts
-    Line(s): (file exists but not read in detail)
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: File name indicates mock menu data for SweetDreams restaurant. Likely contains hardcoded menu items.
-    Recommended Fix: Read file to confirm, then remove or replace with API calls.
+## 4. MOCK ACTIVITY TIMELINE
 
-[28] File: web/src/data/mockDrones.ts
-    Line(s): (file exists but not read in detail)
-    Type: CRITICAL_MOCK_LOGIC
-    Reason: File name indicates mock drone data. Likely contains hardcoded drone information.
-    Recommended Fix: Read file to confirm, then remove or replace with API calls.
+### Finding 4.1
+**File:** `web/src/components/admin/DroneDetailModal.tsx`  
+**Lines:** 254-271  
+**Category:** Mock Data / Fabricated Data
 
-==================================================
-SUMMARY:
-- Total mock-related files found: 28
-- Critical mock logic: 18
-- High risk: 8
-- Moderate: 4
-- Low: 1
-==================================================
+**Code Snippet:**
+```typescript
+// Mock activity timeline (last 3 actions)
+const activities = [
+  {
+    icon: '📦',
+    title: drone.status === 'delivering' ? 'Đang giao hàng' : 'Hoàn thành giao hàng',
+    time: drone.lastUpdate ? dayjs(drone.lastUpdate).format('DD/MM/YYYY HH:mm') : 'N/A'
+  },
+  {
+    icon: '🔋',
+    title: 'Sạc pin',
+    time: drone.lastMaintenance ? dayjs(drone.lastMaintenance).subtract(1, 'day').format('DD/MM/YYYY HH:mm') : 'N/A'
+  },
+  {
+    icon: '🔧',
+    title: 'Bảo trì định kỳ',
+    time: drone.lastMaintenance ? dayjs(drone.lastMaintenance).format('DD/MM/YYYY HH:mm') : 'N/A'
+  }
+];
+```
 
-ADDITIONAL FINDINGS:
+**Problem:** Activity timeline is mocked/fabricated from existing drone fields, not from actual event log API.
 
-1. Multiple setTimeout calls used to simulate API delays across services:
-   - adminService.ts
-   - customerService.ts
-   - menuService.ts
-   - restaurantOrderService.ts
-   - restaurantNotificationService.ts
+**Impact on Real-time Sync:** Shows fake activity history. Real-time activity updates from backend won't reflect here.
 
-2. Extensive localStorage usage as database replacement:
-   - OrderContext.tsx - stores orders
-   - OrderCard.tsx - stores mock_users
-   - menuService.ts - stores products
-   - restaurantOrderService.ts - stores orders
-   - restaurantNotificationService.ts - stores notifications
-   - AuthContext.tsx - stores auth (acceptable for auth tokens)
+---
 
-3. Mock API server directory (mock-api/) contains:
-   - server.js - Express server with mock endpoints
-   - db.json - JSON database file
-   - Multiple documentation files about mock API
+## 5. MOCK SCENARIO SERVICE
 
-4. Documentation files mentioning mock data (not code, but indicate mock usage):
-   - Multiple .md files in frontend-web/ and web/ directories
-   - References to mockData.ts, mockMenu files, etc.
+### Finding 5.1
+**File:** `web/src/services/scenarioService.ts`  
+**Lines:** 155-172  
+**Category:** Mock Data / No Backend Call
 
-5. Test files with proper mocking (acceptable):
-   - frontend-web/src/test/setup.ts - Test mocks for localStorage, IntersectionObserver, etc.
+**Code Snippet:**
+```typescript
+export const addScenario = async (scenario: Omit<Scenario, 'id' | 'timestamp' | 'resolved'>): Promise<boolean> => {
+  try {
+    const newScenario: Scenario = {
+      ...scenario,
+      id: `scenario_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date().toISOString(),
+      resolved: false
+    };
 
-RECOMMENDATIONS:
+    // In a real system, this would POST to API
+    // For mock API, we'll simulate it
+    console.log('[scenarioService] Scenario added:', newScenario);
+    return true;
+  } catch (error) {
+    console.error('[scenarioService] Error adding scenario:', error);
+    return false;
+  }
+};
+```
 
-1. **IMMEDIATE ACTION**: Remove or replace all CRITICAL_MOCK_LOGIC files
-2. **HIGH PRIORITY**: Replace all localStorage database usage with backend API calls
-3. **MEDIUM PRIORITY**: Remove setTimeout delay simulations
-4. **LOW PRIORITY**: Clean up misleading file names and comments
-5. **VERIFICATION**: Check if axios-mock-adapter is actually used, remove if not
+**Problem:** Scenario creation is mocked - no actual API call to backend. Only logs to console.
 
+**Impact on Real-time Sync:** Scenarios not persisted in backend. Real-time scenario notifications won't work. Admin scenario management broken.
+
+---
+
+### Finding 5.2
+**File:** `web/src/services/scenarioService.ts`  
+**Lines:** 177-186  
+**Category:** Mock Data / No Backend Call
+
+**Code Snippet:**
+```typescript
+export const resolveScenario = async (scenarioId: string): Promise<boolean> => {
+  try {
+    // In a real system, this would PATCH to API
+    console.log(`[scenarioService] Scenario ${scenarioId} resolved.`);
+    return true;
+  } catch (error) {
+    console.error(`[scenarioService] Error resolving scenario ${scenarioId}:`, error);
+    return false;
+  }
+};
+```
+
+**Problem:** Scenario resolution is mocked - no actual API call. Only logs to console.
+
+**Impact on Real-time Sync:** Scenario status changes not persisted. Real-time updates won't reflect.
+
+---
+
+## 6. MOCK DRONE REALTIME DATA
+
+### Finding 6.1
+**File:** `web/src/services/droneRealtimeService.ts`  
+**Lines:** 111-113  
+**Category:** Mock Data / Calculated Data
+
+**Code Snippet:**
+```typescript
+// Calculate ETA if delivering
+let eta: number | undefined = undefined;
+if (drone.status === 'delivering' && drone.orderId) {
+  // Mock ETA calculation (in minutes)
+  eta = Math.floor(5 + Math.random() * 15); // 5-20 minutes
+}
+```
+
+**Problem:** ETA is randomly generated instead of calculated from real GPS/route data from backend.
+
+**Impact on Real-time Sync:** Shows inaccurate delivery times. Real-time ETA updates from backend won't work. Restaurant/customer see wrong delivery estimates.
+
+---
+
+### Finding 6.2
+**File:** `web/src/services/droneRealtimeService.ts`  
+**Lines:** 79-89  
+**Category:** Mock Data / Simulated Data
+
+**Code Snippet:**
+```typescript
+// Calculate speed (convert from m/s to km/h if speedMps exists, or mock)
+let speed = drone.speed || 0;
+if (drone.speedMps && !speed) {
+  speed = drone.speedMps * 3.6;
+} else if (!speed && drone.status === 'delivering') {
+  // Simulate speed based on delivery progress
+  speed = 15 + Math.random() * 10; // 15-25 km/h
+}
+```
+
+**Problem:** Speed is simulated with random numbers when not available from backend.
+
+**Impact on Real-time Sync:** Shows inaccurate drone speeds. Real-time speed updates from backend GPS won't reflect.
+
+---
+
+## 7. MOCK NOTIFICATION SERVICE
+
+### Finding 7.1
+**File:** `web/src/services/restaurantNotificationService.ts`  
+**Lines:** 15-63  
+**Category:** Mock Data / No Backend Call
+
+**Code Snippet:**
+```typescript
+/**
+ * Notify restaurant about a new order
+ * This function simulates sending a notification to the restaurant
+ * In a real application, this would call an API endpoint or use WebSockets
+ */
+export const notifyRestaurant = async (order: Order): Promise<boolean> => {
+  try {
+    // ... normalization logic ...
+    
+    // Send notification to backend API
+    try {
+      // Backend automatically creates notifications when orders are created
+      // This function is kept for backward compatibility and custom events
+      const notification = {
+        orderId: order.id,
+        restaurantId: restaurantId,
+        // ... notification object
+      };
+
+      // Trigger a custom event for real-time updates (if restaurant dashboard is open)
+      window.dispatchEvent(new CustomEvent('newOrderNotification', {
+        detail: notification
+      }));
+
+      console.log(`✅ Restaurant notification sent: ${restaurantId}`, notification);
+      return true;
+    } catch (error) {
+      // ... error handling
+    }
+  }
+};
+```
+
+**Problem:** Notification function doesn't actually call backend API. Only dispatches custom browser event and logs to console.
+
+**Impact on Real-time Sync:** Restaurant owners won't receive real-time notifications when orders are created. Breaks restaurant real-time alerts. Relies on WebSocket only (no backup notification mechanism).
+
+---
+
+## 8. ADMIN SERVICE PLACEHOLDERS (NO BACKEND CALLS)
+
+### Finding 8.1
+**File:** `web/src/services/adminService.ts`  
+**Lines:** 224-233  
+**Category:** Mock Data / No Backend Call
+
+**Code Snippet:**
+```typescript
+// Get system logs (placeholder - backend endpoint may not exist yet)
+export const getSystemLogs = async (): Promise<any[]> => {
+  try {
+    // TODO: Implement backend endpoint for system logs
+    return [];
+  } catch (error) {
+    console.error('Failed to get system logs:', error);
+    return [];
+  }
+};
+```
+
+**Problem:** System logs endpoint doesn't exist. Function returns empty array without calling backend.
+
+**Impact on Real-time Sync:** Admin dashboard logs section always empty. System events not logged or displayed.
+
+---
+
+### Finding 8.2
+**File:** `web/src/services/adminService.ts`  
+**Lines:** 235-249  
+**Category:** Mock Data / No Backend Call
+
+**Code Snippet:**
+```typescript
+// Perform emergency override (placeholder - backend endpoint may not exist yet)
+export const performEmergencyOverride = async (
+  targetType: 'order' | 'restaurant' | 'drone',
+  targetId: string,
+  action: string
+): Promise<boolean> => {
+  try {
+    // TODO: Implement backend endpoint for emergency override
+    console.log('Emergency override:', { targetType, targetId, action });
+    return true;
+  } catch (error) {
+    console.error('Failed to perform emergency override:', error);
+    return false;
+  }
+};
+```
+
+**Problem:** Emergency override doesn't call backend. Only logs to console and returns true.
+
+**Impact on Real-time Sync:** Emergency actions not actually performed. Real-time emergency notifications won't work. Admin emergency controls are non-functional.
+
+---
+
+## 9. DRONE MANAGER MOCK LOGIC
+
+### Finding 9.1
+**File:** `web/src/services/droneManager.ts`  
+**Lines:** 100-110  
+**Category:** Mock Data / Development Fallback
+
+**Code Snippet:**
+```typescript
+export const updateDroneStatus = async (
+  id: string,
+  partial: Partial<Drone>
+): Promise<boolean> => {
+  try {
+    // In a real system, this would be a PATCH request
+    // For mock API, we'll simulate it
+    const response = await api.patch(`/drones/${id}`, partial);
+    return response.status === 200;
+  } catch (error) {
+    console.error(`[droneManager] Error updating drone ${id}:`, error);
+    // In development, simulate success
+    console.log(`[droneManager] Simulated update for drone ${id}:`, partial);
+    return true; // ⚠️ Returns true even on error in development
+  }
+};
+```
+
+**Problem:** Returns `true` even when API call fails (development fallback). Comment mentions "simulate" but actually calls API, then simulates success on error.
+
+**Impact on Real-time Sync:** Drone status updates may appear successful but aren't persisted. Real-time status changes won't broadcast to other clients.
+
+---
+
+## 10. MISSING BACKEND ENDPOINTS
+
+### Finding 10.1
+**File:** `web/src/services/scenarioService.ts`  
+**Lines:** 33-40  
+**Category:** Inconsistency / Missing Endpoint
+
+**Code Snippet:**
+```typescript
+export const getScenarios = async (): Promise<Scenario[]> => {
+  try {
+    const response = await api.get(`/scenarios`);
+    return response.data || [];
+  } catch (error) {
+    console.error('[scenarioService] Error fetching scenarios:', error);
+    return [];
+  }
+};
+```
+
+**Problem:** Frontend calls `/scenarios` endpoint that doesn't exist in backend. No `ScenarioController` found.
+
+**Impact on Real-time Sync:** Scenarios feature doesn't work. Silent failure (returns empty array). No error visible to user.
+
+---
+
+### Finding 10.2
+**File:** `web/src/data/adminData.ts`  
+**Lines:** 118-127  
+**Category:** Inconsistency / Missing Endpoint
+
+**Code Snippet:**
+```typescript
+export const getSystemLogs = async (): Promise<SystemLog[]> => {
+  try {
+    // System logs endpoint doesn't exist yet, return empty array
+    // TODO: Implement system logs endpoint in backend
+    return [];
+  } catch (error) {
+    console.error('[adminData] Error fetching system logs:', error);
+    return [];
+  }
+};
+```
+
+**Problem:** System logs endpoint missing. Function always returns empty array.
+
+**Impact on Real-time Sync:** Admin cannot see system logs. Real-time system events not displayed.
+
+---
+
+### Finding 10.3
+**File:** `web/src/data/adminData.ts`  
+**Lines:** 40, 83  
+**Category:** Inconsistency / Missing Endpoint
+
+**Code Snippet:**
+```typescript
+api.get('/auth/users')
+```
+
+**Problem:** Frontend calls `/auth/users` endpoint that may not exist. `AuthController` only has `/auth/login` and `/auth/register`.
+
+**Impact on Real-time Sync:** Admin customer list will be empty. Cannot manage customers in real-time.
+
+---
+
+## 11. OUTDATED MOCK REFERENCES (DEAD CODE)
+
+### Finding 11.1
+**Files:** Multiple  
+**Lines:** Various  
+**Category:** Dead Code / Outdated Comments
+
+**Found in:**
+- `web/src/components/restaurant/RestaurantAnalytics.tsx:288` - "TODO: Backend integration in Phase 2 - removed all hardcoded mock data"
+- `web/src/components/admin/DroneMonitor.tsx:33,511,667,759` - "TODO: Backend integration in Phase 2 - removed mockDrones import/fallback"
+- `web/src/pages/Login.tsx:4` - "TODO: Backend integration in Phase 2 - removed mockData import"
+- `web/src/context/AuthContext.tsx:162` - "TODO: Backend integration in Phase 2 - removed USERS mock data"
+- `web/src/pages/admin/AdminDashboard.tsx:393` - "TODO: Backend integration in Phase 2 - removed fallback to mock data"
+- `web/src/pages/admin/AdminControlPanel.tsx:4` - "TODO: Backend integration in Phase 2 - removed mockData import"
+
+**Problem:** Outdated TODO comments referencing removed mock data. Code clutter and confusing for developers.
+
+**Impact on Real-time Sync:** No runtime impact, but clutters codebase.
+
+---
+
+## 12. FRONTEND MOBILE MOCK API FILE
+
+### Finding 12.1
+**File:** `frontend-mobile/src/api/mock.ts`  
+**Lines:** 1-21  
+**Category:** Mock Data / Outdated Comments
+
+**Code Snippet:**
+```typescript
+// [Data Sync] Use shared mock API server instead of AxiosMockAdapter
+// For mobile devices, you may need to use your computer's IP address instead of localhost
+// Example: 'http://192.168.1.100:5000' (replace with your actual IP)
+const API_BASE_URL = __DEV__ 
+  ? 'http://192.168.0.100:8080/api'  // For iOS Simulator / Android Emulator
+  : 'http://192.168.0.100:8080/api';  // For physical devices, replace with your computer's IP
+
+export const api = axios.create({ 
+  baseURL: API_BASE_URL,
+  // ...
+});
+
+// [Data Sync] Note: Removed AxiosMockAdapter - now using backend API
+// All requests now go to http://192.168.0.100:8080/api which is the same API used by web frontend
+```
+
+**Problem:** File name suggests mock, but actually contains real API configuration. Outdated comments reference removed mock API server.
+
+**Impact on Real-time Sync:** No runtime impact (config is correct), but misleading file name.
+
+---
+
+## 13. SIMULATION FUNCTIONS
+
+### Finding 13.1
+**File:** `web/src/services/vnpay.ts`  
+**Lines:** 246-261  
+**Category:** Mock Data / Development Function
+
+**Code Snippet:**
+```typescript
+/**
+ * Simulate VNPay payment response (for development/testing)
+ * In production, this would redirect to actual VNPay URL
+ */
+export const simulateVNPayPayment = (): Promise<{
+  success: boolean;
+  transactionId?: string;
+  message: string;
+}> => {
+  // Backend integration complete - removed setTimeout delay
+  // In real implementation, this would redirect to VNPay payment gateway
+  return Promise.resolve({
+    success: true,
+    transactionId: `VNPAY${Date.now()}`,
+    message: 'Thanh toán thành công qua VNPay'
+  });
+};
+```
+
+**Problem:** Simulation function for VNPay payment that returns mock success. Should only be used in test environment.
+
+**Impact on Real-time Sync:** If used in production, payments won't actually process. Order status won't update correctly.
+
+---
+
+## 14. PRODUCT DATA USAGE IN PAGES
+
+### Finding 14.1
+**Files:** Multiple pages import hardcoded products array  
+**Category:** Mock Data / Hardcoded Array Usage
+
+**Found in:**
+- `web/src/pages/Cart.tsx:137` - Uses `products` array for product map
+- `web/src/pages/Details.tsx:100` - Uses `products.find()` instead of API call
+- `web/src/pages/Menu.tsx:5` - Imports `products` array
+- `web/src/pages/Home.tsx:5` - Imports `products` array
+
+**Problem:** Pages import and use hardcoded products array instead of fetching from `/api/products` endpoint.
+
+**Impact on Real-time Sync:** Products displayed are stale. Product availability, prices, or new products won't update in real-time. Menu changes from backend won't reflect in UI.
+
+---
+
+## SUMMARY BY CATEGORY
+
+### Mock Data (7 findings):
+1. ✅ `web/src/data/products.ts` - Hardcoded products array (10 products)
+2. ✅ `web/src/pages/admin/AdminRestaurants.tsx` - Hardcoded restaurants array (including fake "Pizza Palace")
+3. ✅ `web/src/components/admin/DroneDetailModal.tsx` - Mock activity timeline
+4. ✅ `web/src/services/droneRealtimeService.ts` - Mock ETA calculation (random numbers)
+5. ✅ `web/src/services/droneRealtimeService.ts` - Simulated speed calculation
+6. ✅ `web/src/services/vnpay.ts` - Simulate VNPay payment function
+7. ✅ Multiple pages import hardcoded `products` array instead of API
+
+### Bypass / Security (2 findings):
+8. ✅ `web/src/context/AdminAuthContext.tsx` - **CRITICAL:** Hardcoded admin credentials (`admin`/`admin123`)
+9. ✅ `web/src/pages/admin/AdminLogin.tsx` - Admin credentials displayed in UI
+
+### No Backend Call (5 findings):
+10. ✅ `web/src/services/scenarioService.ts` - `addScenario()` only logs, no API call
+11. ✅ `web/src/services/scenarioService.ts` - `resolveScenario()` only logs, no API call
+12. ✅ `web/src/services/restaurantNotificationService.ts` - `notifyRestaurant()` only dispatches event, no API call
+13. ✅ `web/src/services/adminService.ts` - `getSystemLogs()` returns empty array, no API call
+14. ✅ `web/src/services/adminService.ts` - `performEmergencyOverride()` only logs, no API call
+
+### Inconsistency / Missing Endpoints (3 findings):
+15. ✅ `web/src/services/scenarioService.ts` - Calls `/scenarios` endpoint that doesn't exist
+16. ✅ `web/src/data/adminData.ts` - System logs endpoint missing
+17. ✅ `web/src/data/adminData.ts` - `/auth/users` endpoint may not exist
+
+### Dead Code / Outdated Comments (1 finding):
+18. ✅ Multiple files - Outdated TODO comments referencing removed mock data (6+ files)
+
+### Development Fallback (1 finding):
+19. ✅ `web/src/services/droneManager.ts` - Returns `true` on API error (simulation mode)
+
+### File Naming (1 finding):
+20. ✅ `frontend-mobile/src/api/mock.ts` - File named "mock" but contains real API config
+
+---
+
+## REAL-TIME SYNC IMPACT SUMMARY
+
+### Critical Impact (Blocks Real-time Sync):
+1. ❌ **Admin Authentication Bypass** - Backend doesn't track admin actions
+2. ❌ **Notification Service Mock** - Restaurant alerts don't actually notify backend
+3. ❌ **Hardcoded Products** - Stale product data not updated in real-time
+4. ❌ **Scenario Service Mock** - Scenario management completely non-functional
+
+### Medium Impact (Partially Blocks Real-time Sync):
+5. ⚠️ **Mock ETA Calculation** - Shows inaccurate delivery times
+6. ⚠️ **Mock Speed Calculation** - Shows inaccurate drone speeds
+7. ⚠️ **Hardcoded Restaurants** - Wrong restaurant list on initial load
+8. ⚠️ **Missing Endpoints** - Silent failures, features don't work
+
+### Low Impact (Doesn't Block Sync):
+9. ℹ️ **Mock Activity Timeline** - UI display only
+10. ℹ️ **Outdated Comments** - Code clutter only
+11. ℹ️ **Development Fallbacks** - May cause confusion
+
+---
+
+## TOTAL FINDINGS: 20
+
+- **Mock Data:** 7 findings
+- **Bypass / Security:** 2 findings (1 CRITICAL)
+- **No Backend Call:** 5 findings
+- **Inconsistency:** 3 findings
+- **Dead Code:** 1 finding
+- **Development Fallback:** 1 finding
+- **File Naming:** 1 finding
+
+---
+
+**Report Generated:** 2025-11-23  
+**No Code Modifications Made** - Analysis Only

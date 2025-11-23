@@ -38,7 +38,8 @@ public class OrderService {
     @Transactional(readOnly = true)
     public List<Order> findOrders(String paymentSessionId, String phone, String restaurant) {
         try {
-            System.out.println("[OrderService] findOrders - paymentSessionId: " + paymentSessionId + ", phone: " + phone + ", restaurant: " + restaurant);
+            System.out.println("[OrderService] findOrders - paymentSessionId: " 
+                    + paymentSessionId + ", phone: " + phone + ", restaurant: " + restaurant);
             
             List<Order> orders;
             
@@ -48,14 +49,16 @@ public class OrderService {
             } else {
                 // Fall back to phone/restaurant filters
                 boolean hasPhone = StringUtils.hasText(phone);
-                boolean hasRestaurant = StringUtils.hasText(restaurant);
+                boolean hasRestaurantId = StringUtils.hasText(restaurant);
 
-                if (hasPhone && hasRestaurant) {
-                    orders = orderRepository.findByCustomerPhoneContainingIgnoreCaseAndRestaurantIgnoreCase(phone, restaurant);
+                if (hasPhone && hasRestaurantId) {
+                    orders = orderRepository.findByCustomerPhoneContainingIgnoreCaseAndRestaurantId(
+                            phone, restaurant
+                    );
                 } else if (hasPhone) {
                     orders = orderRepository.findByCustomerPhoneContainingIgnoreCase(phone);
-                } else if (hasRestaurant) {
-                    orders = orderRepository.findByRestaurantIgnoreCase(restaurant);
+                } else if (hasRestaurantId) {
+                    orders = orderRepository.findByRestaurantId(restaurant);
                 } else {
                     orders = orderRepository.findAll();
                 }

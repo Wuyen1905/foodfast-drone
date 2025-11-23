@@ -12,8 +12,10 @@ public interface OrderRepository extends JpaRepository<Order, String>, JpaSpecif
 
     List<Order> findByCustomerPhoneContainingIgnoreCase(String phone);
 
-    List<Order> findByRestaurantIgnoreCase(String restaurant);
+    // Filter by restaurantId instead of restaurant name
+    List<Order> findByRestaurantId(String restaurantId);
 
-    List<Order> findByCustomerPhoneContainingIgnoreCaseAndRestaurantIgnoreCase(String phone, String restaurant);
+    // Filter by phone + restaurantId
+    List<Order> findByCustomerPhoneContainingIgnoreCaseAndRestaurantId(String phone, String restaurantId);
 }
 

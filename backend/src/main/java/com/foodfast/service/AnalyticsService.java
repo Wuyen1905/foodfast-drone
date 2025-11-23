@@ -63,7 +63,7 @@ public class AnalyticsService {
      */
     @Transactional(readOnly = true)
     public Analytics calculateAnalytics(String restaurantId, String period) {
-        List<Order> orders = orderRepository.findByRestaurantIgnoreCase(restaurantId);
+        List<Order> orders = orderRepository.findByRestaurantId(restaurantId);
         
         // Filter orders by period
         Instant now = Instant.now();
@@ -129,7 +129,7 @@ public class AnalyticsService {
         }
         
         Restaurant restaurant = restaurantOpt.get();
-        List<Order> orders = orderRepository.findByRestaurantIgnoreCase(restaurantId);
+        List<Order> orders = orderRepository.findByRestaurantId(restaurantId);
         
         // Calculate today's orders
         LocalDate today = LocalDate.now();

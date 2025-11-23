@@ -1,9 +1,4 @@
 {
-<<<<<<< HEAD
-  "dependencies": {
-    "@stomp/stompjs": "^7.2.1",
-    "sockjs-client": "^1.6.1"
-=======
   "name": "foodfast-drone-delivery",
   "version": "1.0.0",
   "private": true,
@@ -78,6 +73,5 @@
     "typescript": "^5.0.2",
     "vite": "^7.1.12",
     "vitest": "^4.0.4"
->>>>>>> 8590ecfe07ab04f8a0c3cf3782761ee3315c13eb
   }
 }

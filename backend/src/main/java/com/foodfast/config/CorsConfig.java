@@ -25,7 +25,9 @@ public class CorsConfig implements WebMvcConfigurer {
                 )
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
-                .allowCredentials(true)
+                // We don't need cookies for the SPA / mobile app, we use Authorization headers.
+                // To avoid the "allowedOrigins cannot contain '*'" error, disable credentials here.
+                .allowCredentials(false)
                 .maxAge(3600);
     }
 
@@ -41,7 +43,9 @@ public class CorsConfig implements WebMvcConfigurer {
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
+        // We don't need cookies for the SPA / mobile app, we use Authorization headers.
+        // To avoid the "allowedOrigins cannot contain '*'" error, disable credentials here.
+        configuration.setAllowCredentials(false);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

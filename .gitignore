@@ -64,3 +64,11 @@ web-build/
 .pub-cache/
 .pub/
 build/
+
+# Mock data directories (prevent revival)
+/src/data/
+/web/src/data/
+/frontend-web/src/data/
+/mobile/src/data/
+/mobile-app/src/data/
+/frontend-mobile/src/data/

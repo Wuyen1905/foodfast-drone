@@ -18,7 +18,15 @@
       "@components/*": ["./src/components/*"],
       "@pages/*": ["./src/pages/*"],
       "@utils/*": ["./src/utils/*"],
-      "@types/*": ["./src/types/*"]
+      "@types/*": ["./src/types/*"],
+      "@services/*": ["./src/services/*"],
+      "@api/*": ["./src/api/*"],
+      "@config/*": ["./src/config/*"],
+      "@constants/*": ["./src/constants/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@realtime/*": ["./src/realtime/*"],
+      "@schemas/*": ["./src/schemas/*"],
+      "@state/*": ["./src/state/*"]
     }
   },
   "include": ["src"]

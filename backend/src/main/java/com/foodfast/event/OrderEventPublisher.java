@@ -15,6 +15,13 @@ public class OrderEventPublisher {
 
     public void publishOrderUpdate(Order order) {
         System.out.println("🔥 Broadcasting order update: " + order.getId());
+        
+        // Global realtime
         messagingTemplate.convertAndSend("/topic/orders", order);
+        
+        // Restaurant-specific realtime
+        if (order.getRestaurantId() != null) {
+            messagingTemplate.convertAndSend("/topic/orders/" + order.getRestaurantId(), order);
+        }
     }
 }
