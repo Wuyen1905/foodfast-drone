@@ -1,6 +1,6 @@
 import { api } from '@/config/axios';
 
-// [Data Sync] Map db.json order structure to OrderContext Order type
+// [Data Sync] Map backend API order structure to OrderContext Order type
 export const mapApiOrderToOrder = (apiOrder: any): any => {
   // Build items array
   const items = (apiOrder.items || []).map((item: any) => {
@@ -95,7 +95,7 @@ const validateOrderData = (order: any): { valid: boolean; errors: string[] } => 
   };
 };
 
-// [Data Sync] Map OrderContext Order type to db.json order structure
+// [Data Sync] Map OrderContext Order type to backend API order structure
 export const mapOrderToApiOrder = (order: any): any => {
   // [Fix 500 Error] Validate order data before mapping
   const validation = validateOrderData(order);
@@ -103,7 +103,7 @@ export const mapOrderToApiOrder = (order: any): any => {
     throw new Error(`Invalid order data: ${validation.errors.join(', ')}`);
   }
   
-  // Normalize restaurant ID to db.json format
+  // Normalize restaurant ID to backend API format
   let restaurantId = order.restaurantId;
   if (restaurantId) {
     if (restaurantId === 'sweetdreams' || restaurantId.startsWith('sd')) {
@@ -158,7 +158,7 @@ export const mapOrderToApiOrder = (order: any): any => {
     }
   }
   
-  // [Fix 500 Error] Generate orderTime (format: "HH:MM") - required by db.json
+  // [Fix 500 Error] Generate orderTime (format: "HH:MM") - required by backend API
   let orderTime: string;
   try {
     const timestamp = order.createdAt || Date.now();
@@ -174,7 +174,7 @@ export const mapOrderToApiOrder = (order: any): any => {
     orderTime = `${hours}:${minutes}`;
   }
   
-  // [Fix 500 Error] Build order payload matching db.json structure exactly
+  // [Fix 500 Error] Build order payload matching backend API structure exactly
   const apiOrder: any = {
     id: order.id || `ORDER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     status: mapOrderStatusToApiStatus(order.status || 'Pending'),
@@ -182,7 +182,7 @@ export const mapOrderToApiOrder = (order: any): any => {
     customerName: String(order.name || '').trim(),
     customerPhone: String(order.phone || '').trim(),
     items: validItems,
-    orderTime: orderTime, // Required by db.json
+    orderTime: orderTime, // Required by backend API
   };
   
   // [Fix 500 Error] Add restaurantId if available (required for restaurant orders)

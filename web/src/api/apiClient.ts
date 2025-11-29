@@ -1,11 +1,10 @@
-import axios from 'axios';
-import { getApiBaseUrl } from './backend';
+import axios from "axios";
+import { getApiBaseUrl } from "../config/backend";
 
-const API_BASE = getApiBaseUrl();
+const API_BASE_URL = getApiBaseUrl();
 
-export const api = axios.create({
-  baseURL: API_BASE,
-  withCredentials: false,
+let apiClient = axios.create({
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -13,7 +12,7 @@ export const api = axios.create({
 });
 
 // Request interceptor to add auth token
-api.interceptors.request.use(
+apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -27,11 +26,11 @@ api.interceptors.request.use(
 );
 
 // Response interceptor to handle common errors
-api.interceptors.response.use(
+apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
+      // Unauthorized - clear token
       localStorage.removeItem('token');
       localStorage.removeItem('auth_user');
       localStorage.removeItem('role');
@@ -39,4 +38,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export default apiClient;
 

@@ -205,10 +205,14 @@ class SafeDevServer {
   startVite() {
     this.log('Starting Vite development server...', 'build');
     
-    this.viteProcess = spawn('npx', ['vite'], {
-      stdio: 'pipe',
-      shell: true
-    });
+    this.viteProcess = spawn('npx', [
+  'vite',
+  '--host=0.0.0.0',
+  '--port=5173'
+], {
+  stdio: 'pipe',
+  shell: true
+});
 
     let serverStarted = false;
     let outputBuffer = '';

@@ -450,10 +450,10 @@ const Checkout: React.FC = () => {
         const timestamp = Date.now();
         
         // [Restore Full Checkout] Determine restaurant ID (use first item's restaurant if all same, or undefined if mixed)
-        // Ensure restaurant ID is in db.json format (rest_2, restaurant_2)
+        // Ensure restaurant ID is in backend API format (rest_2, restaurant_2)
         let restaurantId: string | undefined = undefined;
         if (allSameRestaurant && firstItemRestaurantId) {
-          // Map to db.json format if needed
+          // Map to backend API format if needed
           if (firstItemRestaurantId === 'rest_2' || firstItemRestaurantId === 'restaurant_2') {
             restaurantId = firstItemRestaurantId;
           } else if (firstItemRestaurantId === 'sweetdreams' || firstItemRestaurantId.startsWith('sd')) {
