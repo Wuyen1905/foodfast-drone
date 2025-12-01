@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
-import { api } from '../api/mock';
+import { api } from '../api/api';
 import { theme } from '../theme';
 
 type Dish = { id: string; name: string; price: number; image: string };

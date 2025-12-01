@@ -1,9 +1,11 @@
 import axios from 'axios';
 
 // Base URL for the Spring Boot backend API
-// In development, use relative path to leverage Vite proxy
-// In production, use environment variable for full URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// Use environment variable or fallback to LAN IP for mobile browser access
+// Mobile browsers cannot use localhost, so we use LAN IP directly
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ??
+  "http://192.168.0.101:8080/api";
 
 // Create axios instance with default config
 const apiClient = axios.create({

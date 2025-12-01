@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { products, getProductImage } from '../data/products';
+import { getProductImage, Product } from '../data/products';
+import { getProductById } from '@/services/menuService';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { formatVND } from '../utils/currency';
@@ -97,14 +98,48 @@ const Details: React.FC = () => {
   const navigate = useNavigate();
   const { add } = useCart();
   const { user } = useAuth();
-  const product = products.find(p => p.id === id);
+  const [product, setProduct] = useState<Product | null>(null);
   const [qty, setQty] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+    const loadProduct = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(true);
+      try {
+        const fetchedProduct = await getProductById(id);
+        setProduct(fetchedProduct);
+      } catch (error) {
+        console.error('Error loading product:', error);
+        toast.error('Không thể tải thông tin sản phẩm');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadProduct();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <Page>
+        <div className="skeleton" style={{ height: '20px', width: '200px', marginBottom: '12px' }} />
+        <Wrap>
+          <div className="skeleton" style={{ height: '300px' }} />
+          <div>
+            <div className="skeleton" style={{ height: '24px', width: '60%', marginBottom: '12px' }} />
+            <div className="skeleton" style={{ height: '20px', width: '40%', marginBottom: '16px' }} />
+            <div className="skeleton" style={{ height: '80px', marginBottom: '16px' }} />
+            <div className="skeleton" style={{ height: '40px', width: '100%' }} />
+          </div>
+        </Wrap>
+      </Page>
+    );
+  }
 
   if (!product) return <Page>Sản phẩm không tìm thấy.</Page>;
 

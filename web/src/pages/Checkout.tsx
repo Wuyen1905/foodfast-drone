@@ -15,10 +15,6 @@ import { splitOrdersByRestaurant, createOrdersFromSplit } from "../services/orde
 // [Restore Full Checkout] Support both single order and split orders based on items
 
 // Styled Components
-
-
-
-export default function CheckoutForm() {
 const CheckoutContainer = styled.div`
   max-width: 800px;
   margin: 0 auto;

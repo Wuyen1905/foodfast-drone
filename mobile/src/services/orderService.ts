@@ -5,10 +5,11 @@
  */
 
 import axios from 'axios';
+import { getBackendUrl } from '../api/getBackendUrl';
 
 // [Data Sync] Use shared backend API server (same as web frontend)
-// Uses environment variable - required for production
-const API_BASE_URL = process.env.API_BASE_URL || 'https://api.foodfast.com/api';
+// Uses auto-detection via getBackendUrl
+const API_BASE_URL = getBackendUrl();
 
 /**
  * Get order by ID from API

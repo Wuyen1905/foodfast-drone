@@ -4,10 +4,7 @@
  * [Bind simulateDronePath Fix]
  */
 
-import axios from 'axios';
-
-// [Data Sync] Use shared Spring Boot backend API (same as web frontend)
-const API_BASE_URL = 'http://192.168.0.100:8080/api';
+import { api } from '../api/api';
 
 export interface PathPoint {
   x: number;
@@ -23,7 +20,7 @@ export async function getDroneByOrder(orderId: string): Promise<any | null> {
     // Fetch order to get droneId if available
     let orderData = null;
     try {
-      const orderResponse = await axios.get(`${API_BASE_URL}/orders/${orderId}`);
+      const orderResponse = await api.get(`/orders/${orderId}`);
       orderData = orderResponse.data;
     } catch (err) {
       // Order might not exist, continue with drone search
@@ -31,7 +28,7 @@ export async function getDroneByOrder(orderId: string): Promise<any | null> {
     }
     
     // Fetch all drones
-    const response = await axios.get(`${API_BASE_URL}/drones`);
+    const response = await api.get(`/drones`);
     const drones = Array.isArray(response.data) ? response.data : [];
     
     // First try: Find drone by orderId field in drone

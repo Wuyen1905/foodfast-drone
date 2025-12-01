@@ -1,5 +1,6 @@
 import SockJS from 'sockjs-client';
 import { Client, Frame, IMessage } from '@stomp/stompjs';
+import { getWebSocketUrl } from '../api/getBackendUrl';
 
 type SubscriptionCallback<T = any> = (payload: T) => void;
 
@@ -15,8 +16,12 @@ class RealtimeSocket {
       return;
     }
 
+    // Use auto-detected WebSocket URL (same IP as API)
+    const wsUrl = getWebSocketUrl();
+    console.log('[RealtimeSocket] Connecting to WebSocket:', wsUrl);
+
     this.client = new Client({
-      webSocketFactory: () => new SockJS('http://192.168.0.100:8080/ws'),
+      webSocketFactory: () => new SockJS(wsUrl),
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
@@ -25,11 +30,13 @@ class RealtimeSocket {
 
     this.client.onConnect = () => {
       this.connected = true;
+      console.log('[RealtimeSocket] ✅ Connected to WebSocket');
       this.subscribeToTopics();
     };
 
     this.client.onDisconnect = () => {
       this.connected = false;
+      console.log('[RealtimeSocket] ❌ Disconnected from WebSocket');
     };
 
     this.client.onStompError = (frame: Frame) => {
@@ -73,6 +80,7 @@ class RealtimeSocket {
     this.client.subscribe('/topic/orders', (message: IMessage) => {
       try {
         const payload = JSON.parse(message.body);
+        console.log('[RealtimeSocket] 📦 Received order update:', payload.id, payload.status);
         this.orderCallbacks.forEach(cb => cb(payload));
       } catch (error) {
         console.error('[RealtimeSocket] Failed to parse order update:', error);

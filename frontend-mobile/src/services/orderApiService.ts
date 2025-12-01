@@ -1,4 +1,4 @@
-import apiClient from '../config/axios';
+import { api } from '../api/api';
 
 // [Data Sync] Map API order structure to frontend Order type
 export const mapApiOrderToOrder = (apiOrder: any): any => {
@@ -91,7 +91,7 @@ export const fetchOrders = async (filters?: {
     if (filters?.restaurantId) params.restaurant = filters.restaurantId;
   }
 
-  const response = await apiClient.get('/orders', { params });
+  const response = await api.get('/orders', { params });
   return Array.isArray(response.data)
     ? response.data.map(mapApiOrderToOrder)
     : [];
@@ -100,7 +100,7 @@ export const fetchOrders = async (filters?: {
 // [Data Sync] Fetch order by ID
 export const fetchOrderById = async (id: string): Promise<any | null> => {
   try {
-    const response = await apiClient.get(`/orders/${id}`);
+    const response = await api.get(`/orders/${id}`);
     return mapApiOrderToOrder(response.data);
   } catch (error) {
     console.error('[OrderApiService] Error fetching order:', error);

@@ -2,8 +2,8 @@
 
 import axios from 'axios';
 
-// [Data Sync] Use shared mock API server (same as web frontend)
-// Note: Mobile uses direct connection to json-server (no proxy)
+// [Data Sync] Use shared backend API server (same as web frontend)
+// Note: Mobile uses direct connection to Spring Boot backend (no proxy)
 const API_BASE_URL = 'http://192.168.0.100:8080/api';
 
 /**

@@ -23,7 +23,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
-    "axios": "^1.7.2",
+    "@types/node": "^24.10.1",
+    "axios": "^1.13.2",
     "dayjs": "^1.11.18",
     "framer-motion": "^11.18.2",
     "leaflet": "^1.9.4",
@@ -37,6 +38,7 @@
     "recharts": "^3.3.0",
     "styled-components": "^6.1.19",
     "sweetalert2": "^11.26.3",
+    "ts-node": "^10.9.2",
     "yup": "^1.7.1"
   },
   "devDependencies": {

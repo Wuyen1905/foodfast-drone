@@ -1,10 +1,6 @@
 // [Data Sync] Verification utility for mobile to check sync with API
 
-import axios from 'axios';
-
-// [Data Sync] Use shared Spring Boot backend API (same as web frontend)
-// Note: Mobile uses direct connection to backend (no proxy)
-const API_BASE_URL = 'http://192.168.0.100:8080/api';
+import { api } from '../api/api';
 
 /**
  * Verify if mobile orders are synchronized with API
@@ -17,7 +13,7 @@ export const verifyMobileSync = async (localOrders: any[]): Promise<{
   differences: string[];
 }> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/orders`);
+    const response = await api.get(`/orders`);
     const apiOrders = response.data || [];
     
     const localCount = localOrders.length;
@@ -90,7 +86,7 @@ export const verifyMobileSync = async (localOrders: any[]): Promise<{
  */
 export const fetchAllOrdersFromAPI = async (): Promise<any[]> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/orders`);
+    const response = await api.get(`/orders`);
     return response.data || [];
   } catch (error) {
     console.error('[Mobile Sync] Error fetching orders from API:', error);

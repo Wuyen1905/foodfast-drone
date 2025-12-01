@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context';
-import { products } from '../data/products';
+import { getAllProducts, Product } from '../data/products';
 import { formatVND } from '../utils/currency';
 import CartSkeleton from '../components/CartSkeleton';
 import toast from 'react-hot-toast';
@@ -88,12 +88,28 @@ const Cart: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { items, remove, setQty, subtotal } = useCart();
-  const productMap = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), []);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const productMap = useMemo(() => Object.fromEntries(products.map(p => [p.id, p])), [products]);
   
   const delivery = 25000; // 25,000 VND
   const tax = subtotal * 0.08;
   const total = subtotal + tax + delivery;
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const fetchedProducts = await getAllProducts();
+        setProducts(fetchedProducts);
+      } catch (error) {
+        console.error('Error loading products:', error);
+        toast.error('Không thể tải thông tin sản phẩm');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProducts();
+  }, []);
 
   const handleRemoveItem = (itemId: string, itemName: string) => {
     remove(itemId);
@@ -122,10 +138,6 @@ const Cart: React.FC = () => {
     navigate('/checkout');
   };
 
-  React.useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
 
   if (loading) {
     return (

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { api } from '../api/mock';
+import { api } from '../api/api';
 import { theme } from '../theme';
 import { realtimeSocket } from '../realtime/socket';
 

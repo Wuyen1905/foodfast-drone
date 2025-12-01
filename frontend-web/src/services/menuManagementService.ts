@@ -28,9 +28,8 @@ export interface OrderHistoryItem {
 // Get dishes by restaurant ID
 export const getDishesByRestaurant = async (restaurantId: string): Promise<MenuItem[]> => {
   try {
-    // Map restaurant ID to restaurant name
-    const restaurantName = restaurantId === 'sweetdreams' || restaurantId === 'rest_2' ? 'SweetDreams' :
-                           restaurantId === 'aloha' || restaurantId === 'restaurant_2' ? 'Aloha' : restaurantId;
+    // Normalize restaurant ID to match backend storage format
+    const restaurantName = restaurantId.trim().toLowerCase();
     
     const products = await getProducts(restaurantName);
     
@@ -77,9 +76,8 @@ export const deleteDishByRestaurant = async (restaurantId: string, dishId: numbe
 // Get order history by restaurant
 export const getOrderHistoryByRestaurant = async (restaurantId: string): Promise<OrderHistoryItem[]> => {
   try {
-    // Map restaurant ID to restaurant name
-    const restaurantName = restaurantId === 'sweetdreams' || restaurantId === 'rest_2' ? 'SweetDreams' :
-                           restaurantId === 'aloha' || restaurantId === 'restaurant_2' ? 'Aloha' : restaurantId;
+    // Normalize restaurant ID to match backend storage format
+    const restaurantName = restaurantId.trim().toLowerCase();
     
     const orders = await getOrdersByRestaurant(restaurantName);
     

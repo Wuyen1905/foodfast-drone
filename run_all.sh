@@ -13,6 +13,20 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
+# Check if Java is installed
+if ! command -v java &> /dev/null; then
+    echo "❌ Error: Java is not installed or not in PATH"
+    echo "   Please install Java 17+ from https://adoptium.net/"
+    exit 1
+fi
+
+# Check if Maven is installed
+if ! command -v mvn &> /dev/null; then
+    echo "❌ Error: Maven is not installed or not in PATH"
+    echo "   Please install Maven from https://maven.apache.org/"
+    exit 1
+fi
+
 # Get the script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
@@ -60,9 +74,9 @@ start_service() {
     esac
 }
 
-echo "[1/3] Starting Mock API on port 5000..."
-start_service "FoodFast Mock API" "mock-api" "json-server --watch db.json --port 5000"
-sleep 3
+echo "[1/3] Starting Spring Boot Backend on port 8080..."
+start_service "FoodFast Backend" "backend" "mvn spring-boot:run"
+sleep 5
 
 echo "[2/3] Starting Frontend Web on port 5173..."
 start_service "FoodFast Web App" "frontend-web" "npm install && npm run dev"
@@ -78,7 +92,7 @@ echo "  ✅ All servers launched successfully!"
 echo "========================================"
 echo ""
 echo "📋 Services running:"
-echo "   • Mock API:     http://localhost:5000"
+echo "   • Backend API:  http://localhost:8080"
 echo "   • Web App:      http://localhost:5173"
 echo "   • Mobile App:   Expo DevTools (check terminal)"
 echo ""

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { ThemeProvider } from "styled-components";
 import { GlobalStyle, theme } from "./theme";
@@ -11,14 +11,31 @@ import { WishlistProvider } from "@/context/WishlistContext";
 import { ThemeProvider as CustomThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { OrderProvider } from "@/context/OrderContext";
-import { products } from "./data/products";
+import { getAllProducts, Product } from "./data/products";
 import { Toaster } from "react-hot-toast";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 
 const Root = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const fetchedProducts = await getAllProducts();
+        setProducts(fetchedProducts);
+      } catch (error) {
+        console.error('Error loading products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProducts();
+  }, []);
+
   const priceMap = useMemo(
     () => Object.fromEntries(products.map((p) => [p.id, p.price])),
-    []
+    [products]
   );
 
   return (

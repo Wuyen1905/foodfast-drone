@@ -3,9 +3,7 @@
  * Base URL: http://192.168.0.100:8080/api
  */
 
-import axios from 'axios';
-
-const API_BASE_URL = 'http://192.168.0.100:8080/api';
+import { api } from '../api/api';
 
 export interface DronePosition {
   lat: number;
@@ -45,7 +43,7 @@ export interface DroneUpdate {
  * @returns Drone data
  */
 export async function getDrone(id: string): Promise<Drone> {
-  const response = await axios.get<Drone>(`${API_BASE_URL}/drones/${id}`);
+  const response = await api.get<Drone>(`/drones/${id}`);
   return response.data;
 }
 
@@ -55,7 +53,7 @@ export async function getDrone(id: string): Promise<Drone> {
  * @returns Array of drones
  */
 export async function listDronesByRestaurant(restaurant: string): Promise<Drone[]> {
-  const response = await axios.get<Drone[]>(`${API_BASE_URL}/drones`, {
+  const response = await api.get<Drone[]>(`/drones`, {
     params: { restaurant },
   });
   // Filter by restaurant if API doesn't support query params
@@ -70,7 +68,7 @@ export async function listDronesByRestaurant(restaurant: string): Promise<Drone[
  * @returns Updated drone data
  */
 export async function patchDrone(id: string, update: DroneUpdate): Promise<Drone> {
-  const response = await axios.patch<Drone>(`${API_BASE_URL}/drones/${id}`, update);
+  const response = await api.patch<Drone>(`/drones/${id}`, update);
   return response.data;
 }
 

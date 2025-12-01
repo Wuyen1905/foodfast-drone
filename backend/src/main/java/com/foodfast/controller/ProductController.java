@@ -18,13 +18,7 @@ import java.util.Optional;
  */
 @RestController
 @RequestMapping("/api/products")
-@CrossOrigin(origins = {
-        "http://localhost:5173",
-        "http://192.168.0.100:5173",
-        "http://192.168.0.100:5174",
-        "http://192.168.0.100:5175",
-        "http://localhost:8081"
-})
+@CrossOrigin(origins = "*")
 public class ProductController {
 
     private final ProductRepository productRepository;
@@ -39,10 +33,10 @@ public class ProductController {
      */
     @GetMapping
     public List<Product> getProducts(@RequestParam(required = false) String restaurant) {
-        if (StringUtils.hasText(restaurant)) {
-            return productRepository.findByRestaurantIgnoreCase(restaurant);
+        if (restaurant == null || restaurant.trim().isEmpty()) {
+            return productRepository.findAll(Sort.by(Sort.Direction.ASC, "name"));
         }
-        return productRepository.findAll(Sort.by(Sort.Direction.ASC, "name"));
+        return productRepository.findByRestaurantIgnoreCase(restaurant);
     }
 
     /**

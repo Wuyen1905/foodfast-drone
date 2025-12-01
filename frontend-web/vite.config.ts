@@ -1,10 +1,22 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import os from "os";
 
-// WiFi IPv4 address for LAN access
-// This is the IP address that mobile devices will use to access the dev server
-const WIFI_IP = "192.168.0.100";
+function getLocalIp() {
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === "IPv4" && !net.internal) {
+        return net.address; // Return first valid LAN IP
+      }
+    }
+  }
+  return "localhost"; // fallback
+}
+
+const lanIp = getLocalIp();
+console.log("[Vite] Using backend target:", `http://${lanIp}:8080`);
 
 export default defineConfig({
   plugins: [react()],
@@ -34,7 +46,7 @@ export default defineConfig({
     // Proxy API requests to Spring Boot backend
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: `http://${lanIp}:8080`,
         changeOrigin: true,
         secure: false,
         timeout: 30000,
@@ -56,7 +68,7 @@ export default defineConfig({
         },
       },
       '/ws': {
-        target: 'http://localhost:8080',
+        target: `http://${lanIp}:8080`,
         changeOrigin: true,
         ws: true,
         secure: false,
@@ -76,9 +88,9 @@ export default defineConfig({
       },
     },
     hmr: {
-      // Use WiFi IP for HMR to enable WebSocket connections over LAN
+      // Use auto-detected LAN IP for HMR to enable WebSocket connections over LAN
       // This fixes WebSocket timeout issues when accessing from other devices
-      host: WIFI_IP,
+      host: lanIp,
       protocol: "ws",
       clientPort: 5173, // Match server port
     },

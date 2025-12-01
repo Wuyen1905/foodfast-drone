@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { api } from '../api/mock';
+import { api } from '../api/api';
 import { theme } from '../theme';
 
 export default function Checkout({ navigation }: any) {

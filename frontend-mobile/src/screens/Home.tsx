@@ -1,13 +1,39 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, Image, Pressable, StyleSheet } from 'react-native';
-import { api } from '../api/mock';
+import { api } from '../api/api';
 import { theme } from '../theme';
 
 type Dish = { id: string; name: string; price: number; image: string };
 
 export default function Home({ navigation }: any) {
   const [items, setItems] = useState<Dish[]>([]);
-  useEffect(() => { api.get('/products').then(r => setItems(r.data.items)); }, []);
+  
+  useEffect(() => {
+    (async () => {
+      try {
+        console.log("[MOBILE] Fetching products from:", api.defaults.baseURL + "/products");
+        const r = await api.get("/products");
+        console.log("[MOBILE] RAW:", r.data);
+
+        const data = Array.isArray(r.data) ? r.data : [];
+
+        setItems(
+          data.map((item) => ({
+            id: String(item.id),
+            name: item.name || "",
+            price: Number(item.price) || 0,
+            image:
+              item.imageUrl ||
+              item.image ||
+              item.img ||
+              "https://placehold.co/100x100",
+          }))
+        );
+      } catch (err) {
+        console.log("[MOBILE] ERROR:", err);
+      }
+    })();
+  }, []);
 
   return (
     <View style={styles.container}>

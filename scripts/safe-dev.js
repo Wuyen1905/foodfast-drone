@@ -204,8 +204,9 @@ class SafeDevServer {
 
   startVite() {
     this.log('Starting Vite development server...', 'build');
+    this.log('Starting Vite with LAN auto-detect (vite --host)...', 'info');
     
-    this.viteProcess = spawn('npx', ['vite'], {
+    this.viteProcess = spawn('npx', ['vite', '--host'], {
       stdio: 'pipe',
       shell: true
     });

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { products, Product } from '../data/products';
+import { Product } from '../data/products';
 import ProductCard from '../components/ProductCard';
 import ProductCardSkeletons from '../components/ProductCardSkeleton';
 import { useAuth } from '@/context';

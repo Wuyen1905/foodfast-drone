@@ -1,15 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { api } from '../api/mock';
+import { api } from '../api/api';
 import { theme } from '../theme';
 import axios from 'axios';
+import { getBackendUrl } from '../api/getBackendUrl';
 import { simulateDronePath, getDronePath, type PathPoint } from '../services/dronePathService';
 import { getOrderById } from '../services/orderService';
 import { getDroneByOrder } from '../services/droneService';
 
 // [Data Sync] Use shared backend API server (same as web frontend)
-// Uses environment variable - required for production
-const API_BASE_URL = process.env.API_BASE_URL || 'https://api.foodfast.com/api';
+// Uses auto-detection via getBackendUrl
+const API_BASE_URL = getBackendUrl();
 
 interface DroneProps {
   orderId?: string;

@@ -1,12 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { api } from '../api/mock';
+import { api } from '../api/api';
 import { theme } from '../theme';
-import axios from 'axios';
 import { simulateDronePath, getDroneByOrder, getDronePath, type PathPoint } from '../services/droneService';
-
-// [Data Sync] Use shared Spring Boot backend API (same as web frontend)
-const API_BASE_URL = 'http://192.168.0.100:8080/api';
 
 interface DroneProps {
   orderId?: string;
@@ -51,7 +47,7 @@ export default function Drone({ orderId, route }: DroneProps) {
     const fetchOrderAndDrone = async () => {
       try {
         // [Data Sync] Fetch order from shared API
-        const orderResponse = await axios.get(`${API_BASE_URL}/orders/${currentOrderId}`);
+        const orderResponse = await api.get(`/orders/${currentOrderId}`);
         const orderData = orderResponse.data;
         setOrder(orderData);
         
@@ -105,7 +101,7 @@ export default function Drone({ orderId, route }: DroneProps) {
 
       try {
         // Fetch latest order status
-        const orderResponse = await axios.get(`${API_BASE_URL}/orders/${currentOrderId}`);
+        const orderResponse = await api.get(`/orders/${currentOrderId}`);
         const latestOrder = orderResponse.data;
         
         if (!latestOrder || !isMounted) return;
@@ -289,14 +285,14 @@ export default function Drone({ orderId, route }: DroneProps) {
     const id = setInterval(async () => {
       try {
         // Fetch latest drone data
-        const droneResponse = await axios.get(`${API_BASE_URL}/drones/${activeDrone.id}`);
+        const droneResponse = await api.get(`/drones/${activeDrone.id}`);
         const latestDrone = droneResponse.data;
 
         // Calculate progress based on drone status and position
         // [Status Normalization] Normalize status to handle both English and Vietnamese
         const normalizedDroneStatus = normalizeOrderStatus(latestDrone.status);
         if (normalizedDroneStatus === 'Đang giao' || latestDrone.status === 'enroute') {
-          // Estimate progress based on battery or use mock API
+          // Estimate progress based on battery or use fallback endpoint
           const r = await api.get('/drone/status');
           setEta(Math.max(1, Math.ceil(r.data.etaMinutes)));
           setProgress(r.data.progress);
@@ -311,7 +307,7 @@ export default function Drone({ orderId, route }: DroneProps) {
           setProgress(0);
         }
       } catch (error) {
-        // Fallback to mock API on error
+        // Fallback to status endpoint on error
         const r = await api.get('/drone/status');
         setEta(r.data.etaMinutes);
         setProgress(r.data.progress);
