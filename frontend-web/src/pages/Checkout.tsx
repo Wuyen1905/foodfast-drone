@@ -36,6 +36,7 @@ const Title = styled.h2`
 
 const FormSection = styled.div`
   margin-bottom: 32px;
+  overflow: visible;
 `;
 
 const SectionTitle = styled.h3`
@@ -49,6 +50,8 @@ const SectionTitle = styled.h3`
 
 const FormGroup = styled.div`
   margin-bottom: 20px;
+  overflow: visible;
+  position: relative;
 `;
 
 const Label = styled.label`
@@ -72,6 +75,120 @@ const Input = styled.input<{ hasError?: boolean }>`
     outline: none;
     border-color: ${props => props.hasError ? '#f44336' : 'var(--primary)'};
     box-shadow: 0 0 0 3px ${props => props.hasError ? 'rgba(244, 67, 54, 0.1)' : 'rgba(255, 102, 0, 0.1)'};
+  }
+`;
+
+const Select = styled.select<{ hasError?: boolean }>`
+  display: block !important;
+  min-height: 48px !important;
+  height: auto !important;
+  width: 100%;
+  padding: 12px 16px !important;
+  border: 2px solid ${props => props.hasError ? '#f44336' : 'var(--border)'};
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  z-index: 10;
+  -webkit-appearance: menulist !important;
+  -moz-appearance: menulist !important;
+  appearance: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  
+  &:focus {
+    outline: none;
+    border-color: ${props => props.hasError ? '#f44336' : 'var(--primary)'};
+    box-shadow: 0 0 0 3px ${props => props.hasError ? 'rgba(244, 67, 54, 0.1)' : 'rgba(255, 102, 0, 0.1)'};
+  }
+  
+  option {
+    padding: 8px;
+    background: var(--card);
+    color: var(--text);
+  }
+`;
+
+const WardDropdownWrapper = styled.div`
+  position: relative;
+  width: 100%;
+`;
+
+const WardDropdownButton = styled.div<{ hasError?: boolean; isOpen?: boolean }>`
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid ${props => props.hasError ? '#f44336' : 'var(--border)'};
+  border-radius: 8px;
+  background: var(--card);
+  color: ${props => props.children?.toString().includes('-- Chọn') ? '#999' : 'var(--text)'};
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.3s ease;
+  user-select: none;
+  
+  &:hover {
+    border-color: ${props => props.hasError ? '#f44336' : 'var(--primary)'};
+  }
+  
+  ${props => props.isOpen && `
+    border-color: ${props.hasError ? '#f44336' : 'var(--primary)'};
+    box-shadow: 0 0 0 3px ${props.hasError ? 'rgba(244, 67, 54, 0.1)' : 'rgba(255, 102, 0, 0.1)'};
+  `}
+`;
+
+const WardDropdownIcon = styled(motion.div)`
+  color: var(--text);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+`;
+
+const WardDropdownList = styled(motion.div)`
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  z-index: 1000;
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+`;
+
+const WardDropdownItem = styled(motion.div)<{ isSelected?: boolean }>`
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  color: var(--text);
+  font-size: 14px;
+  
+  &:hover {
+    background: rgba(255, 102, 0, 0.1);
+  }
+  
+  ${props => props.isSelected && `
+    background: rgba(255, 102, 0, 0.05);
+    color: var(--primary);
+    font-weight: 600;
+  `}
+  
+  &:first-child {
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+  }
+  
+  &:last-child {
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
   }
 `;
 
@@ -215,6 +332,7 @@ const Checkout: React.FC = () => {
     phone: user?.phone || "",
     email: "",
     street: "",
+    ward: "",
     district: "",
     city: "",
     note: "",
@@ -224,11 +342,27 @@ const Checkout: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showVNPayModal, setShowVNPayModal] = useState(false);
+  const [isWardDropdownOpen, setIsWardDropdownOpen] = useState(false);
 
   // Calculate totals
   const delivery = 25000; // 25k VND
   const tax = subtotal * 0.08;
   const total = subtotal + tax + delivery;
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (isWardDropdownOpen && !target.closest('[data-ward-dropdown]')) {
+        setIsWardDropdownOpen(false);
+      }
+    };
+
+    if (isWardDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isWardDropdownOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -300,7 +434,7 @@ const Checkout: React.FC = () => {
             id: orderId,
             name: form.name,
             phone: form.phone,
-            address: `${form.street}, ${form.district}, ${form.city}`,
+            address: `${form.street}, ${form.ward}, ${form.district}, ${form.city}`,
             items: items.map(item => ({
               name: item.name,
               qty: item.qty,
@@ -340,7 +474,7 @@ const Checkout: React.FC = () => {
           id: orderId,
           name: form.name,
           phone: form.phone,
-          address: `${form.street}, ${form.district}, ${form.city}`,
+          address: `${form.street}, ${form.ward}, ${form.district}, ${form.city}`,
           items: items.map(item => ({
             name: item.name,
             qty: item.qty,
@@ -502,6 +636,24 @@ const Checkout: React.FC = () => {
                   </ErrorMessage>
                 )}
               </AnimatePresence>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Phường/Xã *</Label>
+              <Select 
+                name="ward" 
+                value={form.ward} 
+                onChange={handleChange}
+                hasError={!!errors.ward}
+              >
+                <option value="">-- Chọn Phường/Xã --</option>
+                <option value="Phường Chợ Quán">Phường Chợ Quán</option>
+                <option value="Phường An Đông">Phường An Đông</option>
+                <option value="Phường Chợ Lớn">Phường Chợ Lớn</option>
+              </Select>
+              {errors.ward && (
+                <ErrorMessage>{errors.ward}</ErrorMessage>
+              )}
             </FormGroup>
 
             <FormGroup>

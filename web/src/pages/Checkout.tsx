@@ -243,6 +243,7 @@ const Checkout: React.FC = () => {
     phone: user?.phone || "",
     email: "",
     street: "",
+    ward: "",
     district: "",
     city: "",
     note: "",
@@ -352,7 +353,7 @@ const Checkout: React.FC = () => {
           const orderData = {
             name: form.name,
             phone: form.phone,
-            address: `${form.street}, ${form.district}, ${form.city}`,
+            address: `${form.street}, ${form.ward}, ${form.district}, ${form.city}`,
               items: checkoutItems,
             userId: user?.id,
             note: form.note,
@@ -380,7 +381,7 @@ const Checkout: React.FC = () => {
         const createdOrders = createOrdersFromSplit(splitResult, {
           name: form.name,
           phone: form.phone,
-          address: `${form.street}, ${form.district}, ${form.city}`,
+          address: `${form.street}, ${form.ward}, ${form.district}, ${form.city}`,
               items: checkoutItems,
           paymentMethod: form.payment as any,
           paymentStatus: form.payment === 'cod' ? 'Đang chờ phê duyệt' : 'completed',
@@ -470,7 +471,7 @@ const Checkout: React.FC = () => {
           id: orderId,
           name: form.name,
           phone: form.phone,
-          address: `${form.street}, ${form.district}, ${form.city}`,
+          address: `${form.street}, ${form.ward}, ${form.district}, ${form.city}`,
           items: checkoutItems.map(item => {
             if (!item.price || item.price === undefined || item.price === null) {
               throw new Error(`Missing price for item: ${item.name}`);
@@ -679,6 +680,53 @@ const Checkout: React.FC = () => {
                     exit={{ opacity: 0, y: -10 }}
                   >
                     {errors.street}
+                  </ErrorMessage>
+                )}
+              </AnimatePresence>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Phường/Xã *</Label>
+              <select
+                name="ward"
+                value={form.ward}
+                onChange={handleChange}
+                style={{
+                  width: "100%",
+                  padding: "12px 16px",
+                  border: errors.ward ? "2px solid #f44336" : "2px solid var(--border)",
+                  borderRadius: "8px",
+                  background: "var(--card)",
+                  color: "var(--text)",
+                  fontSize: "14px",
+                  transition: "all 0.3s ease",
+                  cursor: "pointer"
+                }}
+                onFocus={(e) => {
+                  e.target.style.outline = "none";
+                  e.target.style.borderColor = errors.ward ? "#f44336" : "var(--primary)";
+                  e.target.style.boxShadow = errors.ward 
+                    ? "0 0 0 3px rgba(244, 67, 54, 0.1)" 
+                    : "0 0 0 3px rgba(255, 102, 0, 0.1)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = errors.ward ? "#f44336" : "var(--border)";
+                  e.target.style.boxShadow = "none";
+                }}
+              >
+                <option value="">-- Chọn Phường/Xã --</option>
+                <option value="Phường Chợ Quán">Phường Chợ Quán</option>
+                <option value="Phường An Đông">Phường An Đông</option>
+                <option value="Phường Chợ Lớn">Phường Chợ Lớn</option>
+              </select>
+              <AnimatePresence>
+                {errors.ward && (
+                  <ErrorMessage
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    {errors.ward}
                   </ErrorMessage>
                 )}
               </AnimatePresence>

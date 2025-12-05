@@ -27,11 +27,33 @@ export const checkoutSchema = yup.object({
     .min(5, 'Địa chỉ phải có ít nhất 5 ký tự')
     .max(100, 'Địa chỉ không được quá 100 ký tự'),
   
+  ward: yup
+    .string()
+    .required('Phường/Xã là bắt buộc'),
+  
   district: yup
     .string()
-    .required('Quận/huyện là bắt buộc')
-    .min(2, 'Tên quận/huyện phải có ít nhất 2 ký tự')
-    .max(50, 'Tên quận/huyện không được quá 50 ký tự'),
+    .required("Quận/huyện là bắt buộc")
+    .test(
+      "district-format",
+      "Quận/huyện không hợp lệ",
+      function (value) {
+        if (!value) return false;
+
+        // numeric case
+        if (/^\d+$/.test(value)) {
+          const num = parseInt(value, 10);
+          return num >= 1 && num <= 12;
+        }
+
+        // alphabetic case (1–3 words)
+        const words = value.trim().split(/\s+/);
+        if (words.length < 1 || words.length > 3) return false;
+
+        // allow only letters + Vietnamese accents
+        return /^[A-Za-zÀ-Ỹà-ỹ\s]+$/.test(value);
+      }
+    ),
   
   city: yup
     .string()

@@ -16,6 +16,7 @@ import java.util.Optional;
  * Product Controller
  * Provides full CRUD operations for products matching frontend ProductApi
  */
+
 @RestController
 @RequestMapping("/api/products")
 @CrossOrigin(origins = "*")

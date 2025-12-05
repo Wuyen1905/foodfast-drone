@@ -27,6 +27,10 @@ export const checkoutSchema = yup.object({
     .min(5, 'Địa chỉ phải có ít nhất 5 ký tự')
     .max(100, 'Địa chỉ không được quá 100 ký tự'),
   
+  ward: yup
+    .string()
+    .required('Phường/Xã là bắt buộc'),
+  
   district: yup
     .string()
     .required('Quận/huyện là bắt buộc')
