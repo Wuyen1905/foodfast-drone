@@ -1,3 +1,6 @@
+# Documentation files
+*.md
+
 # Dependencies
 node_modules/
 npm-debug.log*
@@ -72,3 +75,4 @@ build/
 /mobile/src/data/
 /mobile-app/src/data/
 /frontend-mobile/src/data/
+/FoodFast/
